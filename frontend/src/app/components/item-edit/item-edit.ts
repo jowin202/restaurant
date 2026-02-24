@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
@@ -48,6 +49,8 @@ interface Item {
   ean?: string | null;
   has_image: boolean;
   image_data_url?: string | null;
+  image_data_urls?: string[];
+  images?: Array<{ id: string; filename?: string; content_type?: string }>;
 }
 
 @Component({
@@ -81,10 +84,10 @@ export class ItemEdit implements OnInit {
   saving = signal(false);
   imageBusy = signal(false);
 
-  selectedFile = signal<File | null>(null);
-  imageUrl = signal('');
-  currentImageDataUrl = signal<string | null>(null);
-  hasImage = signal(false);
+  selectedFiles = signal<File[]>([]);
+  imageUrlDraft = signal('');
+  currentImageDataUrls = signal<string[]>([]);
+  imageMetas = signal<Array<{ id: string; filename?: string; content_type?: string }>>([]);
 
   attributeRows = signal<AttributeRow[]>([{ key: '', value: '' }]);
   orderAttributeRows = signal<OrderAttributeRow[]>([
@@ -202,17 +205,44 @@ export class ItemEdit implements OnInit {
 
   onFileSelected(event: Event): void {
     const target = event.target as HTMLInputElement;
-    const file = target.files && target.files.length > 0 ? target.files[0] : null;
-    this.selectedFile.set(file);
+    const files = target.files ? Array.from(target.files) : [];
+    if (files.length === 0) return;
+    this.selectedFiles.update((current) => [...current, ...files]);
+    target.value = '';
   }
 
-  clearFileSelection(input: HTMLInputElement): void {
-    this.selectedFile.set(null);
-    input.value = '';
+  async onCameraCapture(event: Event): Promise<void> {
+    const target = event.target as HTMLInputElement;
+    const files = target.files ? Array.from(target.files) : [];
+    target.value = '';
+    if (files.length === 0) return;
+
+    this.imageBusy.set(true);
+    let failed = 0;
+    for (const file of files) {
+      const ok = await this.uploadSingleFile(file);
+      if (!ok) failed += 1;
+    }
+    this.imageBusy.set(false);
+    this.loadItem();
+
+    if (failed === 0) {
+      this.snackBar.open('Foto wurde direkt hochgeladen.', 'OK', { duration: 2200 });
+    } else {
+      this.snackBar.open('Foto teilweise/gar nicht hochgeladen.', 'OK', { duration: 2800 });
+    }
   }
 
   setImageUrl(value: string): void {
-    this.imageUrl.set(value);
+    this.imageUrlDraft.set(value);
+  }
+
+  removeSelectedFile(index: number): void {
+    this.selectedFiles.update((files) => {
+      const clone = [...files];
+      clone.splice(index, 1);
+      return clone;
+    });
   }
 
   saveItem(): void {
@@ -240,45 +270,34 @@ export class ItemEdit implements OnInit {
     });
   }
 
-  uploadImage(): void {
-    const file = this.selectedFile();
-    if (!file) {
-      this.snackBar.open('Bitte zuerst eine Datei auswählen.', 'OK', { duration: 2200 });
+  async uploadImages(): Promise<void> {
+    const files = this.selectedFiles();
+    if (files.length === 0) {
+      this.snackBar.open('Bitte zuerst Dateien auswählen.', 'OK', { duration: 2200 });
       return;
     }
-
-    if (this.imageUrl().trim()) {
-      this.snackBar.open('Bitte URL-Feld leeren, wenn du Datei-Upload nutzen möchtest.', 'OK', { duration: 3000 });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
 
     this.imageBusy.set(true);
-    this.api.upload(`/api/items/${this.itemId}/image/`, this.auth.token(), formData).subscribe((res: any) => {
-      this.imageBusy.set(false);
+    let failed = 0;
+    for (const file of files) {
+      const ok = await this.uploadSingleFile(file);
+      if (!ok) failed += 1;
+    }
+    this.imageBusy.set(false);
+    this.selectedFiles.set([]);
+    this.loadItem();
 
-      if (this.isApiError(res)) {
-        this.snackBar.open('Bild-Upload fehlgeschlagen.', 'OK', { duration: 2500 });
-        return;
-      }
-
-      this.snackBar.open('Bild wurde hochgeladen.', 'OK', { duration: 2200 });
-      this.selectedFile.set(null);
-      this.loadItem();
-    });
+    if (failed === 0) {
+      this.snackBar.open('Bilder wurden hochgeladen.', 'OK', { duration: 2200 });
+    } else {
+      this.snackBar.open('Einige Bilder konnten nicht hochgeladen werden.', 'OK', { duration: 3000 });
+    }
   }
 
   importImageFromUrl(): void {
-    const url = this.imageUrl().trim();
+    const url = this.imageUrlDraft().trim();
     if (!url) {
       this.snackBar.open('Bitte eine Bild-URL eingeben.', 'OK', { duration: 2200 });
-      return;
-    }
-
-    if (this.selectedFile()) {
-      this.snackBar.open('Bitte Datei-Auswahl entfernen, wenn du URL nutzen möchtest.', 'OK', { duration: 3000 });
       return;
     }
 
@@ -292,14 +311,18 @@ export class ItemEdit implements OnInit {
       }
 
       this.snackBar.open('Bild von URL übernommen.', 'OK', { duration: 2200 });
-      this.imageUrl.set('');
+      this.imageUrlDraft.set('');
       this.loadItem();
     });
   }
 
-  removeImage(): void {
+  removeImage(imageId?: string): void {
     this.imageBusy.set(true);
-    this.api.delete(`/api/items/${this.itemId}/image/`, this.auth.token()).subscribe((res: any) => {
+    const url = imageId
+      ? `/api/items/${this.itemId}/image/?image_id=${encodeURIComponent(imageId)}`
+      : `/api/items/${this.itemId}/image/`;
+
+    this.api.delete(url, this.auth.token()).subscribe((res: any) => {
       this.imageBusy.set(false);
 
       if (this.isApiError(res)) {
@@ -351,9 +374,25 @@ export class ItemEdit implements OnInit {
           : [{ key: '', label: '', input_type: 'string', required: false, options_text: '' }]
       );
 
-      this.currentImageDataUrl.set(item.image_data_url || null);
-      this.hasImage.set(!!item.has_image);
+      this.currentImageDataUrls.set(
+        Array.isArray(item.image_data_urls) && item.image_data_urls.length > 0
+          ? item.image_data_urls
+          : item.image_data_url
+            ? [item.image_data_url]
+            : []
+      );
+      this.imageMetas.set(Array.isArray(item.images) ? item.images : []);
+      this.selectedFiles.set([]);
+      this.imageUrlDraft.set('');
     });
+  }
+
+  private async uploadSingleFile(file: File): Promise<boolean> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await firstValueFrom(this.api.upload(`/api/items/${this.itemId}/image/`, this.auth.token(), formData));
+    return !this.isApiError(res);
   }
 
   private buildPayload(): any | null {

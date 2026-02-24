@@ -75,11 +75,12 @@
 
 .image-preview {
   width: 100%;
-  max-width: 320px;
+  max-width: 260px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid #dde4f3;
   background: #eef2f9;
+  position: relative;
 }
 
 .image-preview img {
@@ -88,9 +89,37 @@
   height: auto;
 }
 
+.image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.remove-image-btn {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+}
+
 .upload-row {
   display: grid;
   gap: 6px;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.file-list {
+  display: grid;
+  gap: 4px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .file-hint {

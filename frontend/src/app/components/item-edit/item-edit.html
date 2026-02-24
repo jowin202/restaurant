@@ -128,17 +128,50 @@
       <div class="full-width image-section">
         <h3>Bild verwalten</h3>
 
-        <div class="image-preview" *ngIf="currentImageDataUrl() as image">
-          <img [src]="image" alt="Item Bild" />
+        <div class="image-grid" *ngIf="currentImageDataUrls().length > 0">
+          <div class="image-preview" *ngFor="let image of currentImageDataUrls(); let i = index">
+            <img [src]="image" alt="Item Bild" />
+            <button
+              mat-mini-fab
+              color="warn"
+              type="button"
+              class="remove-image-btn"
+              [disabled]="imageBusy()"
+              (click)="removeImage(imageMetas()[i]?.id)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
         </div>
 
         <div class="upload-row">
-          <label for="itemImageEdit">Bild hochladen</label>
-          <input id="itemImageEdit" type="file" accept="image/*" capture="environment" #fileInput (change)="onFileSelected($event)" />
-          <div class="file-hint" *ngIf="selectedFile() as file">{{ file.name }}</div>
-          <button type="button" mat-button *ngIf="selectedFile()" (click)="clearFileSelection(fileInput)">Datei entfernen</button>
-          <button type="button" mat-stroked-button color="primary" [disabled]="imageBusy() || !selectedFile()" (click)="uploadImage()">
-            Datei hochladen
+          <label for="itemImageEdit">Dateien hochladen (mehrfach)</label>
+          <input id="itemImageEdit" type="file" accept="image/*" multiple #fileInput (change)="onFileSelected($event)" />
+
+          <input
+            #cameraInput
+            type="file"
+            accept="image/*"
+            capture="environment"
+            class="hidden-file-input"
+            (change)="onCameraCapture($event)"
+          />
+          <button type="button" mat-stroked-button (click)="cameraInput.click()" [disabled]="imageBusy()">
+            <mat-icon>photo_camera</mat-icon>
+            Direkt fotografieren (Auto-Upload)
+          </button>
+
+          <div class="file-list" *ngIf="selectedFiles().length > 0">
+            <div class="file-item" *ngFor="let file of selectedFiles(); let i = index">
+              <span class="file-hint">{{ file.name }}</span>
+              <button type="button" mat-icon-button color="warn" (click)="removeSelectedFile(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <button type="button" mat-stroked-button color="primary" [disabled]="imageBusy() || selectedFiles().length === 0" (click)="uploadImages()">
+            Ausgewählte hochladen
           </button>
         </div>
 
@@ -147,7 +180,7 @@
             <mat-label>Bild-URL</mat-label>
             <input
               matInput
-              [value]="imageUrl()"
+              [value]="imageUrlDraft()"
               (input)="setImageUrl($any($event.target).value)"
               placeholder="https://example.com/bild.jpg"
             />
@@ -157,8 +190,8 @@
           </button>
         </div>
 
-        <button type="button" mat-button color="warn" *ngIf="hasImage()" [disabled]="imageBusy()" (click)="removeImage()">
-          Bild entfernen
+        <button type="button" mat-button color="warn" *ngIf="currentImageDataUrls().length > 0" [disabled]="imageBusy()" (click)="removeImage()">
+          Alle Bilder entfernen
         </button>
       </div>
 

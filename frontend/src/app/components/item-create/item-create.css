@@ -136,6 +136,22 @@ video {
   gap: 6px;
 }
 
+.hidden-file-input {
+  display: none;
+}
+
+.file-list {
+  display: grid;
+  gap: 4px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .file-hint {
   color: #2f5f2f;
   font-size: 0.85rem;

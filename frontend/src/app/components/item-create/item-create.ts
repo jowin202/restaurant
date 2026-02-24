@@ -10,6 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Router, RouterModule } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
@@ -103,8 +104,9 @@ export class ItemCreate implements OnDestroy {
   private zxingControls: { stop: () => void } | null = null;
 
   saving = signal(false);
-  selectedFile = signal<File | null>(null);
-  imageUrl = signal('');
+  selectedFiles = signal<File[]>([]);
+  imageUrlDraft = signal('');
+  imageUrls = signal<string[]>([]);
 
   scannerSupported = signal<boolean>(
     typeof window !== 'undefined' &&
@@ -228,17 +230,49 @@ export class ItemCreate implements OnDestroy {
 
   onFileSelected(event: Event): void {
     const target = event.target as HTMLInputElement;
-    const file = target.files && target.files.length > 0 ? target.files[0] : null;
-    this.selectedFile.set(file);
+    const files = target.files ? Array.from(target.files) : [];
+    if (files.length === 0) return;
+
+    this.selectedFiles.update((current) => [...current, ...files]);
+    target.value = '';
   }
 
-  clearFileSelection(input: HTMLInputElement): void {
-    this.selectedFile.set(null);
-    input.value = '';
+  onCameraCapture(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const files = target.files ? Array.from(target.files) : [];
+    if (files.length === 0) return;
+
+    this.selectedFiles.update((current) => [...current, ...files]);
+    this.snackBar.open('Foto erfasst und zur Upload-Liste hinzugefügt.', 'OK', { duration: 1800 });
+    target.value = '';
+  }
+
+  removeSelectedFile(index: number): void {
+    this.selectedFiles.update((files) => {
+      const clone = [...files];
+      clone.splice(index, 1);
+      return clone;
+    });
   }
 
   setImageUrl(value: string): void {
-    this.imageUrl.set(value);
+    this.imageUrlDraft.set(value);
+  }
+
+  addImageUrl(): void {
+    const url = this.imageUrlDraft().trim();
+    if (!url) return;
+
+    this.imageUrls.update((list) => [...list, url]);
+    this.imageUrlDraft.set('');
+  }
+
+  removeImageUrl(index: number): void {
+    this.imageUrls.update((list) => {
+      const clone = [...list];
+      clone.splice(index, 1);
+      return clone;
+    });
   }
 
   setEanInput(value: string): void {
@@ -519,13 +553,6 @@ export class ItemCreate implements OnDestroy {
       return;
     }
 
-    const file = this.selectedFile();
-    const imageUrl = this.imageUrl().trim();
-    if (file && imageUrl) {
-      this.snackBar.open('Bitte entweder Datei-Upload oder Bild-URL verwenden.', 'OK', { duration: 3000 });
-      return;
-    }
-
     const payload = this.buildPayload();
     if (!payload) {
       return;
@@ -533,7 +560,7 @@ export class ItemCreate implements OnDestroy {
 
     this.saving.set(true);
 
-    this.api.post('/api/items/', this.auth.token(), payload).subscribe((res: any) => {
+    this.api.post('/api/items/', this.auth.token(), payload).subscribe(async (res: any) => {
       if (this.isApiError(res)) {
         this.saving.set(false);
         this.snackBar.open('Item konnte nicht erstellt werden (evtl. EAN doppelt).', 'OK', { duration: 3000 });
@@ -541,7 +568,10 @@ export class ItemCreate implements OnDestroy {
       }
 
       const createdId = res.id;
-      this.attachImageAfterCreate(createdId, file, imageUrl);
+      await this.attachImagesAfterCreate(createdId);
+      this.saving.set(false);
+      this.snackBar.open('Item erstellt.', 'OK', { duration: 2200 });
+      this.router.navigate(['/items/list']);
     });
   }
 
@@ -556,52 +586,36 @@ export class ItemCreate implements OnDestroy {
     });
     this.attributeRows.set([{ key: '', value: '' }]);
     this.orderAttributeRows.set([{ key: '', label: '', input_type: 'string', required: false, options_text: '' }]);
-    this.selectedFile.set(null);
-    this.imageUrl.set('');
+    this.selectedFiles.set([]);
+    this.imageUrlDraft.set('');
+    this.imageUrls.set([]);
     this.eanInput.set('');
     this.eanLookupResult.set(null);
     this.metadataSource.set(null);
   }
 
-  private attachImageAfterCreate(itemId: string, file: File | null, imageUrl: string): void {
-    if (!file && !imageUrl) {
-      this.saving.set(false);
-      this.snackBar.open('Item erstellt.', 'OK', { duration: 2200 });
-      this.router.navigate(['/items/list']);
-      return;
-    }
+  private async attachImagesAfterCreate(itemId: string): Promise<void> {
+    const files = this.selectedFiles();
+    const urls = this.imageUrls();
 
-    if (file) {
+    for (const file of files) {
       const formData = new FormData();
       formData.append('file', file);
 
-      this.api.upload(`/api/items/${itemId}/image/`, this.auth.token(), formData).subscribe((imgRes: any) => {
-        this.saving.set(false);
-
-        if (this.isApiError(imgRes)) {
-          this.snackBar.open('Item erstellt, Bild-Upload fehlgeschlagen.', 'OK', { duration: 3000 });
-          this.router.navigate(['/items/list']);
-          return;
-        }
-
-        this.snackBar.open('Item inklusive Bild erstellt.', 'OK', { duration: 2200 });
-        this.router.navigate(['/items/list']);
-      });
-      return;
+      const uploadRes = await firstValueFrom(this.api.upload(`/api/items/${itemId}/image/`, this.auth.token(), formData));
+      if (this.isApiError(uploadRes)) {
+        this.snackBar.open(`Bild-Upload fehlgeschlagen: ${file.name}`, 'OK', { duration: 3200 });
+      }
     }
 
-    this.api.post(`/api/items/${itemId}/image/from-url/`, this.auth.token(), { url: imageUrl }).subscribe((imgRes: any) => {
-      this.saving.set(false);
-
-      if (this.isApiError(imgRes)) {
-        this.snackBar.open('Item erstellt, Bild-URL konnte nicht übernommen werden.', 'OK', { duration: 3200 });
-        this.router.navigate(['/items/list']);
-        return;
+    for (const url of urls) {
+      const urlRes = await firstValueFrom(
+        this.api.post(`/api/items/${itemId}/image/from-url/`, this.auth.token(), { url })
+      );
+      if (this.isApiError(urlRes)) {
+        this.snackBar.open(`Bild-URL konnte nicht übernommen werden: ${url}`, 'OK', { duration: 3200 });
       }
-
-      this.snackBar.open('Item inklusive Bild erstellt.', 'OK', { duration: 2200 });
-      this.router.navigate(['/items/list']);
-    });
+    }
   }
 
   private buildPayload(): any | null {

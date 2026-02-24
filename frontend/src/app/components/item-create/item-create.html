@@ -180,21 +180,42 @@
       </div>
 
       <div class="full-width upload-row">
-        <label for="itemImage">Bild hochladen (optional)</label>
-        <input id="itemImage" type="file" accept="image/*" capture="environment" #fileInput (change)="onFileSelected($event)" />
-        <div class="file-hint" *ngIf="selectedFile() as file">{{ file.name }}</div>
-        <button type="button" mat-button *ngIf="selectedFile()" (click)="clearFileSelection(fileInput)">Datei entfernen</button>
+        <label for="itemImage">Bilder hinzufügen (mehrfach möglich)</label>
+        <input id="itemImage" type="file" accept="image/*" multiple #fileInput (change)="onFileSelected($event)" />
+        <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file-input" (change)="onCameraCapture($event)" />
+        <button type="button" mat-stroked-button (click)="cameraInput.click()">
+          <mat-icon>photo_camera</mat-icon>
+          Direkt fotografieren
+        </button>
+
+        <div class="file-list" *ngIf="selectedFiles().length > 0">
+          <div class="file-item" *ngFor="let file of selectedFiles(); let i = index">
+            <span class="file-hint">{{ file.name }}</span>
+            <button type="button" mat-icon-button color="warn" (click)="removeSelectedFile(i)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
 
         <mat-form-field appearance="outline">
-          <mat-label>Bild-URL (alternativ zum Upload)</mat-label>
+          <mat-label>Bild-URL hinzufügen</mat-label>
           <input
             matInput
-            [value]="imageUrl()"
+            [value]="imageUrlDraft()"
             (input)="setImageUrl($any($event.target).value)"
             placeholder="https://example.com/bild.jpg"
           />
         </mat-form-field>
-        <div class="small-muted">Bitte entweder Datei oder URL verwenden.</div>
+        <button type="button" mat-stroked-button (click)="addImageUrl()">URL hinzufügen</button>
+
+        <div class="file-list" *ngIf="imageUrls().length > 0">
+          <div class="file-item" *ngFor="let url of imageUrls(); let i = index">
+            <span class="file-hint">{{ url }}</span>
+            <button type="button" mat-icon-button color="warn" (click)="removeImageUrl(i)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="actions">

@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import hashlib
 import mimetypes
 import os
 import re
@@ -63,6 +64,8 @@ class ItemOut(ItemBase):
     updated_at: datetime
     has_image: bool = False
     image_data_url: Optional[str] = None
+    image_data_urls: List[str] = Field(default_factory=list)
+    images: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class StockIncreaseByEan(BaseModel):
@@ -169,6 +172,60 @@ def _build_data_url(image: Optional[Dict[str, Any]]) -> Optional[str]:
     return f"data:{content_type};base64,{data}"
 
 
+def _normalize_image_entries(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
+    entries: List[Dict[str, Any]] = []
+
+    raw_images = doc.get("images")
+    if isinstance(raw_images, list):
+        for row in raw_images:
+            if not isinstance(row, dict):
+                continue
+
+            content_type = row.get("content_type")
+            data = row.get("data_base64")
+            if not content_type or not data:
+                continue
+
+            entries.append(
+                {
+                    "id": str(row.get("id") or f"img-{hashlib.md5(str(data).encode('utf-8')).hexdigest()[:12]}"),
+                    "filename": str(row.get("filename") or "image"),
+                    "content_type": str(content_type),
+                    "data_base64": str(data),
+                    "created_at": row.get("created_at"),
+                }
+            )
+
+    legacy_image = doc.get("image")
+    if isinstance(legacy_image, dict):
+        content_type = legacy_image.get("content_type")
+        data = legacy_image.get("data_base64")
+        if content_type and data:
+            legacy_id = str(legacy_image.get("id") or "legacy")
+            if not any(x["id"] == legacy_id for x in entries):
+                entries.append(
+                    {
+                        "id": legacy_id,
+                        "filename": str(legacy_image.get("filename") or "image"),
+                        "content_type": str(content_type),
+                        "data_base64": str(data),
+                        "created_at": legacy_image.get("created_at"),
+                    }
+                )
+
+    return entries
+
+
+def _new_image_entry(filename: str, content_type: str, data_base64: str) -> Dict[str, Any]:
+    return {
+        "id": str(ObjectId()),
+        "filename": (filename or "image")[:140],
+        "content_type": content_type,
+        "data_base64": data_base64,
+        "created_at": datetime.now(timezone.utc),
+    }
+
+
 def _extract_filename_from_url(url: str) -> str:
     path = urlparse(url).path
     filename = os.path.basename(path).strip()
@@ -218,7 +275,19 @@ def _download_image_from_url(url: str) -> Tuple[bytes, str, str]:
 
 
 def _to_item_out(doc: Dict[str, Any], include_image_data: bool) -> Dict[str, Any]:
-    image = doc.get("image")
+    image_entries = _normalize_image_entries(doc)
+    image_meta = [
+        {
+            "id": image.get("id"),
+            "filename": image.get("filename"),
+            "content_type": image.get("content_type"),
+            "created_at": image.get("created_at"),
+        }
+        for image in image_entries
+    ]
+    image_data_urls = [_build_data_url(image) for image in image_entries] if include_image_data else []
+    image_data_urls = [x for x in image_data_urls if x]
+
     return {
         "id": str(doc["_id"]),
         "name": doc.get("name", ""),
@@ -231,8 +300,10 @@ def _to_item_out(doc: Dict[str, Any], include_image_data: bool) -> Dict[str, Any
         "ean": doc.get("ean"),
         "created_at": doc.get("created_at"),
         "updated_at": doc.get("updated_at"),
-        "has_image": bool(image),
-        "image_data_url": _build_data_url(image) if include_image_data else None,
+        "has_image": len(image_entries) > 0,
+        "image_data_url": image_data_urls[0] if len(image_data_urls) > 0 else None,
+        "image_data_urls": image_data_urls,
+        "images": image_meta,
     }
 
 
@@ -271,6 +342,27 @@ async def _apply_stock_delta(existing: Dict[str, Any], delta: float):
 
     updated = await db.items.find_one({"_id": existing["_id"]})
     return updated
+
+
+async def _append_image_entry(item_oid: ObjectId, image_entry: Dict[str, Any]):
+    db = await get_db()
+    existing = await db.items.find_one({"_id": item_oid})
+    if not existing:
+        raise HTTPException(404, "Item nicht gefunden")
+
+    entries = _normalize_image_entries(existing)
+    entries.append(image_entry)
+
+    await db.items.update_one(
+        {"_id": item_oid},
+        {
+            "$set": {
+                "images": entries,
+                "updated_at": datetime.now(timezone.utc),
+            },
+            "$unset": {"image": ""},
+        },
+    )
 
 
 def _infer_item_type(name: str, category: str) -> Literal["essen", "getränk"]:
@@ -654,7 +746,6 @@ async def delete_item(item_id: str):
 
 @router.post("/{item_id}/image/")
 async def upload_item_image(item_id: str, file: UploadFile = File(...)):
-    db = await get_db()
     oid = _parse_item_id(item_id)
 
     if file.content_type not in ALLOWED_IMAGE_TYPES:
@@ -665,66 +756,56 @@ async def upload_item_image(item_id: str, file: UploadFile = File(...)):
         raise HTTPException(413, "Bild ist zu groß (max. 5MB)")
 
     encoded = base64.b64encode(content).decode("utf-8")
+    image_entry = _new_image_entry(file.filename or "image", file.content_type, encoded)
+    await _append_image_entry(oid, image_entry)
 
-    result = await db.items.update_one(
-        {"_id": oid},
-        {
-            "$set": {
-                "image": {
-                    "filename": file.filename,
-                    "content_type": file.content_type,
-                    "data_base64": encoded,
-                },
-                "updated_at": datetime.now(timezone.utc),
-            }
-        },
-    )
-
-    if result.matched_count == 0:
-        raise HTTPException(404, "Item nicht gefunden")
-
-    return {"status": "success", "item_id": item_id}
+    return {"status": "success", "item_id": item_id, "image_id": image_entry["id"]}
 
 
 @router.delete("/{item_id}/image/")
-async def delete_item_image(item_id: str):
+async def delete_item_image(item_id: str, image_id: Optional[str] = Query(default=None)):
     db = await get_db()
     oid = _parse_item_id(item_id)
-
-    result = await db.items.update_one(
-        {"_id": oid},
-        {"$unset": {"image": ""}, "$set": {"updated_at": datetime.now(timezone.utc)}},
-    )
-
-    if result.matched_count == 0:
+    existing = await db.items.find_one({"_id": oid})
+    if not existing:
         raise HTTPException(404, "Item nicht gefunden")
 
-    return {"status": "success", "item_id": item_id}
+    entries = _normalize_image_entries(existing)
+
+    if image_id:
+        remaining = [x for x in entries if x.get("id") != image_id]
+        if len(remaining) == len(entries):
+            raise HTTPException(404, "Bild nicht gefunden")
+    else:
+        remaining = []
+
+    if len(remaining) == 0:
+        await db.items.update_one(
+            {"_id": oid},
+            {
+                "$unset": {"image": "", "images": ""},
+                "$set": {"updated_at": datetime.now(timezone.utc)},
+            },
+        )
+    else:
+        await db.items.update_one(
+            {"_id": oid},
+            {
+                "$set": {"images": remaining, "updated_at": datetime.now(timezone.utc)},
+                "$unset": {"image": ""},
+            },
+        )
+
+    return {"status": "success", "item_id": item_id, "remaining_images": len(remaining)}
 
 
 @router.post("/{item_id}/image/from-url/")
 async def upload_item_image_from_url(item_id: str, data: ImageFromUrlRequest):
-    db = await get_db()
     oid = _parse_item_id(item_id)
 
     content, content_type, filename = await asyncio.to_thread(_download_image_from_url, data.url.strip())
     encoded = base64.b64encode(content).decode("utf-8")
+    image_entry = _new_image_entry(filename, content_type, encoded)
+    await _append_image_entry(oid, image_entry)
 
-    result = await db.items.update_one(
-        {"_id": oid},
-        {
-            "$set": {
-                "image": {
-                    "filename": filename,
-                    "content_type": content_type,
-                    "data_base64": encoded,
-                },
-                "updated_at": datetime.now(timezone.utc),
-            }
-        },
-    )
-
-    if result.matched_count == 0:
-        raise HTTPException(404, "Item nicht gefunden")
-
-    return {"status": "success", "item_id": item_id}
+    return {"status": "success", "item_id": item_id, "image_id": image_entry["id"]}
