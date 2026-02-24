@@ -5,6 +5,7 @@ NAMESPACE="restaurant"
 MANIFEST_FILE="kube-deployment.yml"
 DEFAULT_REGISTRY="registry.shitlab.dev"
 DEFAULT_SECRET_NAME="gitlab-registry-key"
+DEFAULT_ENV_SECRET_NAME="restaurant-env"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -79,6 +80,11 @@ if [[ ! -f "${MANIFEST_FILE}" ]]; then
   exit 1
 fi
 
+default_env_file="${REPO_ROOT}/.env"
+if [[ ! -f "${default_env_file}" && -f "${REPO_ROOT}/env" ]]; then
+  default_env_file="${REPO_ROOT}/env"
+fi
+
 echo "Namespace sicherstellen: ${NAMESPACE}"
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 
@@ -126,6 +132,27 @@ if prompt_yes_no "GitLab Pull Secret anlegen/aktualisieren?" "n"; then
       echo "default ServiceAccount aktualisiert."
     fi
   fi
+fi
+
+if prompt_yes_no "Env-Secret aus Datei anlegen/aktualisieren?" "y"; then
+  read -r -p "Env-Datei [${default_env_file}]: " env_file_input
+  env_file_input="${env_file_input:-${default_env_file}}"
+
+  if [[ "${env_file_input}" != /* ]]; then
+    env_file_input="${REPO_ROOT}/${env_file_input}"
+  fi
+
+  if [[ ! -f "${env_file_input}" ]]; then
+    echo "Fehler: Env-Datei nicht gefunden: ${env_file_input}" >&2
+    exit 1
+  fi
+
+  read -r -p "Env Secret Name [${DEFAULT_ENV_SECRET_NAME}]: " env_secret_name_input
+  env_secret_name_input="${env_secret_name_input:-${DEFAULT_ENV_SECRET_NAME}}"
+
+  kubectl -n "${NAMESPACE}" create secret generic "${env_secret_name_input}" \
+    --from-env-file="${env_file_input}" \
+    --dry-run=client -o yaml | kubectl apply -f -
 fi
 
 echo "Manifest anwenden: ${MANIFEST_FILE}"
