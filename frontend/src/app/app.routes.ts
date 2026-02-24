@@ -20,7 +20,7 @@ export const routes: Routes = [
       { path: 'items/:id/edit', canActivate: [authGuardAdmin], loadComponent: () => import('./components/item-edit/item-edit').then((m) => m.ItemEdit) },
       { path: 'items', redirectTo: 'items/list', pathMatch: 'full' },
       { path: 'users', canActivate: [authGuardSuperAdmin], loadComponent: () => import('./components/user-table/user-table').then((m) => m.UserTable) },
-      //{ path: 'settings', canActivate: [authGuardSuperAdmin], loadComponent: () => import('./components/settings-window/settings-window').then((m) => m.SettingsWindow) },
+      { path: 'settings', canActivate: [authGuardSuperAdmin], loadComponent: () => import('./components/settings-admin/settings-admin').then((m) => m.SettingsAdmin) },
       { path: '', loadComponent: () => import('./components/role-home/role-home').then((m) => m.RoleHome), pathMatch: 'full' },
     ],
   },

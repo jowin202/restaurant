@@ -1,0 +1,122 @@
+import { CommonModule } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+
+import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../services/auth.services';
+
+const SETTINGS_KEYS = [
+  'receipt_printer_ip',
+  'label_printer_ip',
+  'guest_qr_invite_text',
+] as const;
+
+const DEFAULT_INVITE_TEXT = 'Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen.';
+
+@Component({
+  selector: 'app-settings-admin',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatSnackBarModule,
+  ],
+  templateUrl: './settings-admin.html',
+  styleUrl: './settings-admin.css',
+})
+export class SettingsAdmin implements OnInit {
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private snackBar = inject(MatSnackBar);
+
+  loading = signal(false);
+  saving = signal(false);
+
+  form = new FormGroup({
+    receipt_printer_ip: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(120)],
+    }),
+    label_printer_ip: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(120)],
+    }),
+    guest_qr_invite_text: new FormControl(DEFAULT_INVITE_TEXT, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(500)],
+    }),
+  });
+
+  previewText = computed(() => {
+    const template = this.form.controls.guest_qr_invite_text.value || DEFAULT_INVITE_TEXT;
+    return template.replace(/\[name\]/gi, 'Max');
+  });
+
+  ngOnInit(): void {
+    this.loadSettings();
+  }
+
+  loadSettings(): void {
+    this.loading.set(true);
+
+    this.api.post('/api/settings/get_settings/', this.auth.token(), [...SETTINGS_KEYS]).subscribe((res: any) => {
+      this.loading.set(false);
+
+      if (this.isApiError(res)) {
+        this.snackBar.open('Einstellungen konnten nicht geladen werden.', 'OK', { duration: 2500 });
+        return;
+      }
+
+      const values = (res || {}) as Record<string, any>;
+
+      this.form.patchValue({
+        receipt_printer_ip: String(values['receipt_printer_ip'] || ''),
+        label_printer_ip: String(values['label_printer_ip'] || ''),
+        guest_qr_invite_text: String(values['guest_qr_invite_text'] || DEFAULT_INVITE_TEXT),
+      });
+    });
+  }
+
+  saveSettings(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.snackBar.open('Bitte Eingaben prüfen.', 'OK', { duration: 2200 });
+      return;
+    }
+
+    const payload = {
+      receipt_printer_ip: this.form.controls.receipt_printer_ip.value.trim(),
+      label_printer_ip: this.form.controls.label_printer_ip.value.trim(),
+      guest_qr_invite_text: this.form.controls.guest_qr_invite_text.value.trim(),
+    };
+
+    this.saving.set(true);
+    this.api.post('/api/settings/set_settings/', this.auth.token(), payload).subscribe((res: any) => {
+      this.saving.set(false);
+
+      if (this.isApiError(res) || res?.error) {
+        this.snackBar.open('Einstellungen konnten nicht gespeichert werden.', 'OK', { duration: 2500 });
+        return;
+      }
+
+      this.snackBar.open('Einstellungen gespeichert.', 'OK', { duration: 2200 });
+    });
+  }
+
+  resetInviteText(): void {
+    this.form.controls.guest_qr_invite_text.setValue(DEFAULT_INVITE_TEXT);
+  }
+
+  private isApiError(response: any): boolean {
+    return Array.isArray(response) && response.length > 0 && response[0]?.error_code !== undefined;
+  }
+}

@@ -332,6 +332,7 @@ def _serialize_order_for_admin(doc: Dict[str, Any]) -> Dict[str, Any]:
         'user_id': doc.get('user_id'),
         'user_name': doc.get('user_name'),
         'status': str(doc.get('status') or 'pending_integration'),
+        'comment': str(doc.get('comment') or ''),
         'created_at': created_at_iso,
         'item_count': len(items),
         'total_quantity': round(total_quantity, 3),
@@ -347,7 +348,7 @@ async def list_orders(request: Request, limit: int = Query(default=40, ge=1, le=
     db = await get_db()
     docs = await db.orders.find(
         {},
-        {'user_id': 1, 'user_name': 1, 'status': 1, 'created_at': 1, 'items': 1},
+        {'user_id': 1, 'user_name': 1, 'status': 1, 'comment': 1, 'created_at': 1, 'items': 1},
     ).sort('created_at', -1).limit(limit).to_list(length=limit)
 
     return [_serialize_order_for_admin(doc) for doc in docs]

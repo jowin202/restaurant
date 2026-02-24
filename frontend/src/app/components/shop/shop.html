@@ -75,6 +75,17 @@
         </div>
       </div>
 
+      <mat-form-field appearance="outline" class="order-comment">
+        <mat-label>Kommentar zur Bestellung</mat-label>
+        <textarea
+          matInput
+          rows="3"
+          [value]="orderComment()"
+          (input)="setOrderComment($any($event.target).value)"
+          placeholder="z. B. Bitte ohne Zwiebeln, Lieferung an Bar"
+        ></textarea>
+      </mat-form-field>
+
       <button mat-flat-button color="accent" [disabled]="ordering() || cart().length === 0" (click)="orderNow()">
         Bestellen
       </button>

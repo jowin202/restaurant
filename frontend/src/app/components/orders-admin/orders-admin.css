@@ -78,6 +78,17 @@
   font-size: 0.84rem;
 }
 
+.order-comment {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e8edf8;
+  background: #f8fbff;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 0.83rem;
+  color: #334155;
+}
+
 .order-lines {
   display: grid;
   gap: 4px;

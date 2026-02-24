@@ -64,6 +64,7 @@ export class Shop implements OnInit, OnDestroy {
 
   search = signal('');
   typeFilter = signal<'all' | ItemType>('all');
+  orderComment = signal('');
 
   items = signal<Item[]>([]);
   cart = signal<CartLine[]>([]);
@@ -125,6 +126,10 @@ export class Shop implements OnInit, OnDestroy {
 
   setSearch(value: string): void {
     this.search.set(value);
+  }
+
+  setOrderComment(value: string): void {
+    this.orderComment.set(value);
   }
 
   addToCart(item: Item): void {
@@ -269,6 +274,7 @@ export class Shop implements OnInit, OnDestroy {
         quantity: line.quantity,
         order_answers: line.order_answers,
       })),
+      comment: this.orderComment().trim() || null,
     };
 
     this.ordering.set(true);
@@ -281,6 +287,7 @@ export class Shop implements OnInit, OnDestroy {
       }
 
       this.cart.set([]);
+      this.orderComment.set('');
       this.snackBar.open('Bestellung wurde ausgelöst.', 'OK', { duration: 2500 });
     });
   }

@@ -25,6 +25,11 @@
           <span>Menge gesamt: {{ order.total_quantity }}</span>
         </div>
 
+        <div class="order-comment" *ngIf="(order.comment || '').trim().length > 0">
+          <strong>Kommentar:</strong>
+          <span>{{ order.comment }}</span>
+        </div>
+
         <div class="order-lines" *ngIf="order.items.length > 0">
           <div class="order-line" *ngFor="let line of order.items">
             <div class="order-line-main">

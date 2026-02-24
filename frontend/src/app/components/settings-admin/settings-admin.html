@@ -1,0 +1,48 @@
+<div class="page">
+  <mat-card class="settings-card">
+    <div class="header">
+      <h2>Einstellungen</h2>
+      <button mat-stroked-button type="button" (click)="loadSettings()" [disabled]="loading() || saving()">
+        Neu laden
+      </button>
+    </div>
+
+    <div *ngIf="loading()" class="loading">Einstellungen werden geladen...</div>
+
+    <form [formGroup]="form" (ngSubmit)="saveSettings()" *ngIf="!loading()" class="settings-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Drucker IP (Bondrucker)</mat-label>
+        <input matInput formControlName="receipt_printer_ip" placeholder="z. B. 192.168.1.50" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Drucker IP (Etikettendrucker)</mat-label>
+        <input matInput formControlName="label_printer_ip" placeholder="z. B. 192.168.1.51" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Textvorlage QR-Hinweis</mat-label>
+        <textarea
+          matInput
+          rows="4"
+          formControlName="guest_qr_invite_text"
+          placeholder="Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen."
+        ></textarea>
+      </mat-form-field>
+
+      <div class="hint-row">
+        <span class="hint">Platzhalter: `[Name]`</span>
+        <button mat-button type="button" (click)="resetInviteText()">Standardtext einsetzen</button>
+      </div>
+
+      <div class="preview-box">
+        <div class="preview-title">Vorschau</div>
+        <p>{{ previewText() }}</p>
+      </div>
+
+      <div class="actions">
+        <button mat-flat-button color="primary" type="submit" [disabled]="saving()">Speichern</button>
+      </div>
+    </form>
+  </mat-card>
+</div>

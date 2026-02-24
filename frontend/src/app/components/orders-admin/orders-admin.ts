@@ -19,6 +19,7 @@ interface AdminOrder {
   user_id?: string | null;
   user_name?: string | null;
   status: string;
+  comment?: string | null;
   created_at: string;
   item_count: number;
   total_quantity: number;
