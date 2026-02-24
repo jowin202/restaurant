@@ -28,5 +28,5 @@ deploy-to-rancher:
     name: bitnami/kubectl:latest
     entrypoint: [""]
   script:
-    kubectl --kubeconfig $KUBECONFIG rollout undo deployment/boxertafel -n boxertafel
+    kubectl --kubeconfig $KUBECONFIG rollout undo deployment/restaurant -n restaurant
 
