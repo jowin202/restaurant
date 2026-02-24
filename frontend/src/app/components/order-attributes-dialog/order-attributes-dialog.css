@@ -7,7 +7,7 @@
 .dialog-form {
   display: grid;
   gap: 8px;
-  min-width: min(560px, 80vw);
+  width: min(420px, 100%);
 }
 
 .field-row {
@@ -20,6 +20,6 @@
 
 @media (max-width: 700px) {
   .dialog-form {
-    min-width: 0;
+    width: 100%;
   }
 }

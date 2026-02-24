@@ -1,0 +1,50 @@
+<div class="page">
+  <mat-card class="orders-card">
+    <div class="orders-header">
+      <h2>Bestellungen</h2>
+      <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">Aktualisieren</button>
+    </div>
+
+    <div *ngIf="loading()" class="loading">Bestellungen werden geladen...</div>
+    <div *ngIf="!loading() && orders().length === 0" class="loading">Keine Bestellungen vorhanden.</div>
+
+    <div class="orders-list" *ngIf="!loading() && orders().length > 0">
+      <div class="order-card" *ngFor="let order of orders()">
+        <div class="order-head">
+          <div>
+            <h3>Bestellung</h3>
+            <div class="order-meta">
+              {{ formatOrderDate(order.created_at) }} | {{ order.user_name || 'Unbekannt' }}
+            </div>
+          </div>
+          <span class="order-status">{{ statusLabel(order.status) }}</span>
+        </div>
+
+        <div class="order-summary">
+          <span>{{ order.item_count }} Positionen</span>
+          <span>Menge gesamt: {{ order.total_quantity }}</span>
+        </div>
+
+        <div class="order-lines" *ngIf="order.items.length > 0">
+          <div class="order-line" *ngFor="let line of order.items">
+            <div class="order-line-main">
+              <span class="line-name">{{ line.name }}</span>
+              <strong>{{ line.ordered_quantity }} {{ line.unit || '' }}</strong>
+            </div>
+
+            <div class="order-line-answers" *ngIf="lineAnswerEntries(line).length > 0">
+              <span class="answer-chip" *ngFor="let entry of lineAnswerEntries(line)">
+                {{ entry.label }}: {{ entry.value }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-actions">
+          <button mat-stroked-button color="primary" type="button" (click)="manageOrder(order)">Verwalten</button>
+          <button mat-stroked-button type="button" (click)="preparePrint(order)">Bestellung drucken</button>
+        </div>
+      </div>
+    </div>
+  </mat-card>
+</div>

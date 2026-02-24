@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from db import get_db
@@ -180,8 +180,8 @@ async def checkout(data: CheckoutOrder, request: Request):
     db = await get_db()
 
     object_ids: List[ObjectId] = []
-    quantity_map: Dict[str, float] = {}
-    answer_map: Dict[str, Dict[str, Any]] = {}
+    requested_quantity_by_item: Dict[str, float] = {}
+    incoming_lines: List[Dict[str, Any]] = []
 
     for item in data.items:
         if not ObjectId.is_valid(item.item_id):
@@ -189,21 +189,18 @@ async def checkout(data: CheckoutOrder, request: Request):
         oid = ObjectId(item.item_id)
         oid_str = str(oid)
 
-        if oid_str not in quantity_map:
+        if oid_str not in requested_quantity_by_item:
             object_ids.append(oid)
-            quantity_map[oid_str] = item.quantity
-            answer_map[oid_str] = dict(item.order_answers)
-            continue
+            requested_quantity_by_item[oid_str] = 0.0
 
-        quantity_map[oid_str] = round(quantity_map[oid_str] + item.quantity, 3)
-
-        existing_answers = answer_map[oid_str]
-        incoming_answers = dict(item.order_answers)
-        if incoming_answers and incoming_answers != existing_answers:
-            raise HTTPException(
-                status_code=400,
-                detail='Gleiches Item mehrfach mit unterschiedlichen Attribut-Antworten übergeben.',
-            )
+        requested_quantity_by_item[oid_str] = round(requested_quantity_by_item[oid_str] + item.quantity, 3)
+        incoming_lines.append(
+            {
+                'item_id': oid_str,
+                'quantity': item.quantity,
+                'order_answers': dict(item.order_answers),
+            }
+        )
 
     db_items = await db.items.find(
         {'_id': {'$in': object_ids}},
@@ -213,18 +210,12 @@ async def checkout(data: CheckoutOrder, request: Request):
     if len(db_items) != len(object_ids):
         raise HTTPException(status_code=404, detail='Mindestens ein Item wurde nicht gefunden')
 
-    order_lines: List[Dict[str, Any]] = []
+    item_meta_by_id: Dict[str, Dict[str, Any]] = {}
     stock_updates: List[Dict[str, Any]] = []
 
     for doc in db_items:
         doc_id = str(doc['_id'])
-        ordered_quantity = quantity_map[doc_id]
-        item_order_attributes = _normalize_order_attributes(doc.get('order_attributes'))
-        validated_answers = _validate_order_answers(
-            item_name=str(doc.get('name', 'Item')),
-            order_attributes=item_order_attributes,
-            raw_answers=answer_map.get(doc_id, {}),
-        )
+        ordered_quantity = requested_quantity_by_item[doc_id]
 
         available_quantity = doc.get('quantity')
         if not _is_numeric(available_quantity):
@@ -253,16 +244,35 @@ async def checkout(data: CheckoutOrder, request: Request):
             }
         )
 
+        item_meta_by_id[doc_id] = {
+            'ean': doc.get('ean'),
+            'name': doc.get('name'),
+            'item_type': doc.get('item_type'),
+            'unit': doc.get('unit'),
+            'available_quantity_before': available_quantity,
+            'order_attributes': _normalize_order_attributes(doc.get('order_attributes')),
+        }
+
+    order_lines: List[Dict[str, Any]] = []
+    for line in incoming_lines:
+        line_item_id = line['item_id']
+        line_meta = item_meta_by_id[line_item_id]
+        validated_answers = _validate_order_answers(
+            item_name=str(line_meta.get('name', 'Item')),
+            order_attributes=line_meta['order_attributes'],
+            raw_answers=line.get('order_answers', {}),
+        )
+
         order_lines.append(
             {
-                'item_id': doc_id,
-                'ean': doc.get('ean'),
-                'name': doc.get('name'),
-                'item_type': doc.get('item_type'),
-                'ordered_quantity': ordered_quantity,
-                'unit': doc.get('unit'),
-                'available_quantity_before': available_quantity,
-                'order_attributes': item_order_attributes,
+                'item_id': line_item_id,
+                'ean': line_meta.get('ean'),
+                'name': line_meta.get('name'),
+                'item_type': line_meta.get('item_type'),
+                'ordered_quantity': line['quantity'],
+                'unit': line_meta.get('unit'),
+                'available_quantity_before': line_meta.get('available_quantity_before'),
+                'order_attributes': line_meta['order_attributes'],
                 'order_answers': validated_answers,
             }
         )
@@ -292,4 +302,94 @@ async def checkout(data: CheckoutOrder, request: Request):
         'order_id': str(insert_result.inserted_id),
         'trigger': trigger_result,
         'stock_updated_items': len(stock_updates),
+    }
+
+
+def _serialize_order_line(line: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        'name': line.get('name'),
+        'ordered_quantity': line.get('ordered_quantity'),
+        'unit': line.get('unit'),
+        'order_answers': line.get('order_answers', {}),
+    }
+
+
+def _serialize_order_for_admin(doc: Dict[str, Any]) -> Dict[str, Any]:
+    raw_items = doc.get('items')
+    items = raw_items if isinstance(raw_items, list) else []
+
+    total_quantity = 0.0
+    for line in items:
+        quantity = line.get('ordered_quantity') if isinstance(line, dict) else None
+        if _is_numeric(quantity):
+            total_quantity += float(quantity)
+
+    created_at = doc.get('created_at')
+    created_at_iso = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at or '')
+
+    return {
+        'id': str(doc['_id']),
+        'user_id': doc.get('user_id'),
+        'user_name': doc.get('user_name'),
+        'status': str(doc.get('status') or 'pending_integration'),
+        'created_at': created_at_iso,
+        'item_count': len(items),
+        'total_quantity': round(total_quantity, 3),
+        'items': [_serialize_order_line(line) for line in items if isinstance(line, dict)],
+    }
+
+
+@router.get('/')
+async def list_orders(request: Request, limit: int = Query(default=40, ge=1, le=200)):
+    if getattr(request.state, 'admin', 0) <= 0:
+        raise HTTPException(status_code=403, detail='Nur Admins dürfen Bestellungen einsehen')
+
+    db = await get_db()
+    docs = await db.orders.find(
+        {},
+        {'user_id': 1, 'user_name': 1, 'status': 1, 'created_at': 1, 'items': 1},
+    ).sort('created_at', -1).limit(limit).to_list(length=limit)
+
+    return [_serialize_order_for_admin(doc) for doc in docs]
+
+
+@router.post('/{order_id}/manage/')
+async def manage_order(order_id: str, request: Request):
+    if getattr(request.state, 'admin', 0) <= 0:
+        raise HTTPException(status_code=403, detail='Nur Admins dürfen Bestellungen verwalten')
+
+    if not ObjectId.is_valid(order_id):
+        raise HTTPException(status_code=400, detail='Ungültige Bestell-ID')
+
+    db = await get_db()
+    order = await db.orders.find_one({'_id': ObjectId(order_id)}, {'_id': 1})
+    if not order:
+        raise HTTPException(status_code=404, detail='Bestellung nicht gefunden')
+
+    return {
+        'status': 'not_implemented',
+        'order_id': order_id,
+        'action': 'manage',
+        'message': 'Verwaltungsfunktion vorbereitet (noch nicht implementiert).',
+    }
+
+
+@router.post('/{order_id}/prepare-print/')
+async def prepare_print(order_id: str, request: Request):
+    if getattr(request.state, 'admin', 0) <= 0:
+        raise HTTPException(status_code=403, detail='Nur Admins dürfen Bestellungen drucken')
+
+    if not ObjectId.is_valid(order_id):
+        raise HTTPException(status_code=400, detail='Ungültige Bestell-ID')
+
+    db = await get_db()
+    order = await db.orders.find_one({'_id': ObjectId(order_id)}, {'_id': 1})
+    if not order:
+        raise HTTPException(status_code=404, detail='Bestellung nicht gefunden')
+
+    return {
+        'status': 'not_implemented',
+        'order_id': order_id,
+        'action': 'prepare_print',
+        'message': 'Druckvorbereitung ist angelegt (noch nicht implementiert).',
     }
