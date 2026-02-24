@@ -134,7 +134,7 @@
 
         <div class="upload-row">
           <label for="itemImageEdit">Bild hochladen</label>
-          <input id="itemImageEdit" type="file" accept="image/*" #fileInput (change)="onFileSelected($event)" />
+          <input id="itemImageEdit" type="file" accept="image/*" capture="environment" #fileInput (change)="onFileSelected($event)" />
           <div class="file-hint" *ngIf="selectedFile() as file">{{ file.name }}</div>
           <button type="button" mat-button *ngIf="selectedFile()" (click)="clearFileSelection(fileInput)">Datei entfernen</button>
           <button type="button" mat-stroked-button color="primary" [disabled]="imageBusy() || !selectedFile()" (click)="uploadImage()">

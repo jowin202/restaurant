@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 import requests
 from bson import ObjectId
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from db import get_db
@@ -68,6 +68,13 @@ class ItemOut(ItemBase):
 class StockIncreaseByEan(BaseModel):
     ean: str
     quantity_delta: float = Field(default=1, gt=0)
+
+
+class StockAdjustRequest(BaseModel):
+    item_id: Optional[str] = None
+    ean: Optional[str] = None
+    quantity_delta: float
+    reason: Optional[Literal["consume", "restock", "inventory"]] = None
 
 
 class ImageFromUrlRequest(BaseModel):
@@ -237,6 +244,33 @@ def _parse_item_id(item_id: str) -> ObjectId:
 
 def _is_numeric(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+async def _apply_stock_delta(existing: Dict[str, Any], delta: float):
+    db = await get_db()
+    current_quantity = existing.get("quantity")
+    numeric_quantity = float(current_quantity) if _is_numeric(current_quantity) else 0.0
+    new_quantity = round(numeric_quantity + delta, 3)
+
+    if new_quantity < 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Bestand kann nicht negativ werden (aktuell: {numeric_quantity}, delta: {delta})",
+        )
+
+    await db.items.update_one(
+        {"_id": existing["_id"]},
+        {
+            "$set": {
+                "quantity": new_quantity,
+                "in_stock": new_quantity > 0,
+                "updated_at": datetime.now(timezone.utc),
+            }
+        },
+    )
+
+    updated = await db.items.find_one({"_id": existing["_id"]})
+    return updated
 
 
 def _infer_item_type(name: str, category: str) -> Literal["essen", "getränk"]:
@@ -452,7 +486,10 @@ async def lookup_ean(ean: str):
 
 
 @router.post("/ean/stock-increase/")
-async def increase_stock_by_ean(data: StockIncreaseByEan):
+async def increase_stock_by_ean(data: StockIncreaseByEan, request: Request):
+    if getattr(request.state, "admin", 0) <= 0:
+        raise HTTPException(status_code=403, detail="Nur Admins dürfen Lagerbestand anpassen")
+
     db = await get_db()
     normalized_ean = _normalize_ean(data.ean)
     if not normalized_ean:
@@ -462,25 +499,47 @@ async def increase_stock_by_ean(data: StockIncreaseByEan):
     if not existing:
         raise HTTPException(status_code=404, detail="EAN ist unbekannt. Bitte Produkt zuerst anlegen.")
 
-    current_quantity = existing.get("quantity")
-    numeric_quantity = float(current_quantity) if _is_numeric(current_quantity) else 0.0
-    new_quantity = round(numeric_quantity + data.quantity_delta, 3)
-
-    await db.items.update_one(
-        {"_id": existing["_id"]},
-        {
-            "$set": {
-                "quantity": new_quantity,
-                "in_stock": new_quantity > 0,
-                "updated_at": datetime.now(timezone.utc),
-            }
-        },
-    )
-
-    updated = await db.items.find_one({"_id": existing["_id"]})
+    updated = await _apply_stock_delta(existing, data.quantity_delta)
     return {
         "status": "success",
         "action": "stock_increased",
+        "item": _to_item_out(updated, include_image_data=False),
+    }
+
+
+@router.post("/stock-adjust/")
+async def adjust_stock(data: StockAdjustRequest, request: Request):
+    if getattr(request.state, "admin", 0) <= 0:
+        raise HTTPException(status_code=403, detail="Nur Admins dürfen Lagerbestand anpassen")
+
+    if data.quantity_delta == 0:
+        raise HTTPException(status_code=400, detail="quantity_delta darf nicht 0 sein")
+
+    db = await get_db()
+    existing = None
+
+    if data.item_id:
+        oid = _parse_item_id(data.item_id)
+        existing = await db.items.find_one({"_id": oid})
+    elif data.ean:
+        normalized_ean = _normalize_ean(data.ean)
+        if not normalized_ean:
+            raise HTTPException(status_code=400, detail="EAN fehlt")
+        existing = await db.items.find_one({"ean": normalized_ean})
+    else:
+        raise HTTPException(status_code=400, detail="Bitte item_id oder ean angeben")
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Item nicht gefunden")
+
+    updated = await _apply_stock_delta(existing, data.quantity_delta)
+    action = "restocked" if data.quantity_delta > 0 else "consumed"
+
+    return {
+        "status": "success",
+        "action": action,
+        "reason": data.reason,
+        "delta": data.quantity_delta,
         "item": _to_item_out(updated, include_image_data=False),
     }
 

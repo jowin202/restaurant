@@ -20,6 +20,7 @@
       {
       <a mat-list-item routerLink="/items/list" (click)="closeOnMobile()">Essen/Getränke Liste</a>
       <a mat-list-item routerLink="/items/new" (click)="closeOnMobile()">Neues Item anlegen</a>
+      <a mat-list-item routerLink="/inventory" (click)="closeOnMobile()">Inventur</a>
       }
 
       @if(this.auth.admin_level() > 1)

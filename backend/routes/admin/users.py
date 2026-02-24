@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from db import get_db, get_next_sequence
+from db import get_db, get_next_sequence, normalize_username
 from helper import calc_hmac
 
 
@@ -53,7 +53,14 @@ async def create_user(data: UserCreate, request: Request):
         )
 
     db = await get_db()
-    existing_user = await db.users.find_one({"username": data.username}, {"_id": 0, "id": 1, "deleted": 1})
+    username_normalized = normalize_username(data.username)
+    if not username_normalized:
+        raise HTTPException(400, "Username darf nicht leer sein")
+
+    existing_user = await db.users.find_one(
+        {"username_normalized": username_normalized},
+        {"_id": 0, "id": 1, "deleted": 1},
+    )
 
     if existing_user and not existing_user.get("deleted", False):
         raise HTTPException(400, "Username bereits vergeben")
@@ -66,6 +73,7 @@ async def create_user(data: UserCreate, request: Request):
                     "name": data.name,
                     "mail": data.mail,
                     "password": calc_hmac(data.password),
+                    "username_normalized": username_normalized,
                     "admin": data.admin,
                     "deleted": False,
                     "token": "",
@@ -82,7 +90,8 @@ async def create_user(data: UserCreate, request: Request):
     await db.users.insert_one(
         {
             "id": new_id,
-            "username": data.username,
+            "username": data.username.strip(),
+            "username_normalized": username_normalized,
             "name": data.name,
             "mail": data.mail,
             "password": calc_hmac(data.password),

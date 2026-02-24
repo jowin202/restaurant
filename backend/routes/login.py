@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
-from db import get_db
+from db import get_db, normalize_username
 from helper import calc_hmac, token_generate
 from security import verify_token
 
@@ -12,14 +12,14 @@ router = APIRouter()
 
 @router.post("/")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    username = form_data.username
+    username_normalized = normalize_username(form_data.username)
     raw_password = form_data.password
     hashed_password = calc_hmac(raw_password)
     token = token_generate()
 
     db = await get_db()
     user = await db.users.find_one(
-        {"username": username, "deleted": False},
+        {"username_normalized": username_normalized, "deleted": False},
         {"_id": 0, "id": 1, "username": 1, "password": 1, "admin": 1, "name": 1, "mail": 1},
     )
 

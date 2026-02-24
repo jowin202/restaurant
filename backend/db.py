@@ -11,6 +11,10 @@ mongo_client: Optional[AsyncIOMotorClient] = None
 mongo_db: Optional[AsyncIOMotorDatabase] = None
 
 
+def normalize_username(username: str) -> str:
+    return str(username or "").strip().lower()
+
+
 def _mongo_uri() -> str:
     return os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 
@@ -58,6 +62,7 @@ async def pg_db_init() -> None:
     db = await get_db()
 
     await db.users.create_index("username", unique=True)
+    await db.users.create_index("username_normalized", unique=True, sparse=True)
     await db.users.create_index("token")
     await db.items.create_index("name")
     await db.items.create_index("item_type")
@@ -65,13 +70,25 @@ async def pg_db_init() -> None:
     await db.orders.create_index("created_at")
     await db.orders.create_index("user_id")
 
-    admin_user = await db.users.find_one({"username": "admin"})
+    await db.users.update_many(
+        {"username": {"$type": "string"}},
+        [
+            {
+                "$set": {
+                    "username_normalized": {"$toLower": {"$trim": {"input": "$username"}}},
+                }
+            }
+        ],
+    )
+
+    admin_user = await db.users.find_one({"username_normalized": normalize_username("admin")})
     if not admin_user:
         admin_password = os.getenv("ADMIN_DEFAULT_PASSWORD", "admin")
         await db.users.insert_one(
             {
                 "id": await get_next_sequence("users"),
                 "username": "admin",
+                "username_normalized": normalize_username("admin"),
                 "name": "Administrator",
                 "password": calc_hmac(admin_password),
                 "token": "",

@@ -1,0 +1,86 @@
+<div class="page">
+  <div class="grid">
+    <mat-card class="scan-card">
+      <h2>Inventur Schnellmodus</h2>
+
+      <div class="scan-row">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>EAN scannen/eingeben</mat-label>
+          <input matInput [value]="eanInput()" (input)="setEanInput($any($event.target).value)" />
+        </mat-form-field>
+
+        <button mat-stroked-button color="primary" (click)="lookupEan()">Suchen</button>
+        <button mat-stroked-button (click)="toggleScanner()" [disabled]="!scannerSupported() || scannerLoading()">
+          <mat-icon>{{ scannerActive() ? 'stop' : 'camera_alt' }}</mat-icon>
+          {{ scannerActive() ? 'Scanner stoppen' : (scannerLoading() ? 'Scanner lädt...' : 'Scanner') }}
+        </button>
+      </div>
+
+      <video #inventoryVideo autoplay playsinline muted [class.hidden-video]="!scannerActive()"></video>
+      <div class="hint" *ngIf="scannerLoading()">ZXing Scanner wird geladen...</div>
+      <div class="hint" *ngIf="!scannerSupported()">Kamera im Browser nicht verfügbar.</div>
+
+      <div class="scan-hit" *ngIf="scanItem() as item">
+        <div class="title">{{ item.name }}</div>
+        <div class="meta">
+          Bestand: <strong>{{ item.quantity ?? 0 }} {{ item.unit || '' }}</strong>
+        </div>
+
+        <div class="scan-actions">
+          <mat-form-field appearance="outline" class="small-input">
+            <mat-label>Menge</mat-label>
+            <input matInput type="number" [value]="scanDelta()" (input)="setScanDelta($any($event.target).value)" />
+          </mat-form-field>
+
+          <button mat-flat-button color="warn" (click)="applyScannedAdjust('consume')">Verbraucht</button>
+          <button mat-flat-button color="primary" (click)="applyScannedAdjust('restock')">Nachgekauft</button>
+        </div>
+      </div>
+    </mat-card>
+
+    <mat-card class="list-card">
+      <div class="header">
+        <h2>Alle Produkte</h2>
+        <mat-form-field appearance="outline">
+          <mat-label>Filtern</mat-label>
+          <input matInput (input)="setSearch($any($event.target).value)" placeholder="Name, Typ, EAN" />
+        </mat-form-field>
+      </div>
+
+      <div *ngIf="loading()" class="hint">Lade Inventur-Liste...</div>
+      <div *ngIf="!loading() && visibleItems().length === 0" class="hint">Keine Produkte gefunden.</div>
+
+      <div class="rows" *ngIf="!loading() && visibleItems().length > 0">
+        <div class="row" *ngFor="let item of visibleItems()">
+          <div class="left">
+            <div class="title">{{ item.name }}</div>
+            <div class="meta">{{ item.item_type }} | EAN: {{ item.ean || '-' }}</div>
+            <div class="stock">Bestand: {{ item.quantity ?? 0 }} {{ item.unit || '' }}</div>
+          </div>
+
+          <div class="right">
+            <button mat-icon-button color="warn" (click)="quickAdjust(item, 'consume')" aria-label="-1">
+              <mat-icon>remove</mat-icon>
+            </button>
+            <button mat-icon-button color="primary" (click)="quickAdjust(item, 'restock')" aria-label="+1">
+              <mat-icon>add</mat-icon>
+            </button>
+
+            <mat-form-field appearance="outline" class="small-input">
+              <mat-label>Delta</mat-label>
+              <input
+                matInput
+                type="number"
+                [value]="getRowDelta(item.id)"
+                (input)="setRowDelta(item.id, $any($event.target).value)"
+              />
+            </mat-form-field>
+
+            <button mat-stroked-button color="warn" (click)="rowAdjust(item, 'consume')">Verbraucht</button>
+            <button mat-stroked-button color="primary" (click)="rowAdjust(item, 'restock')">Nachgekauft</button>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+</div>
