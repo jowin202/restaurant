@@ -1,0 +1,182 @@
+# -----------------------------------------------------------------------------
+# Setup (einmalig)
+# -----------------------------------------------------------------------------
+# 1) Namespace anlegen
+# kubectl apply -f kube-deployment.yml
+#
+# 2) Registry Secret (optional, nur falls private Registry)
+# kubectl create secret docker-registry gitlab-registry-key \
+#   --docker-server=registry.shitlab.dev \
+#   --docker-username=<user> \
+#   --docker-password=<token> \
+#   -n restaurant
+#
+# 3) App-Env Secret aus .env erzeugen
+# kubectl create secret generic restaurant-env \
+#   --from-env-file=.env \
+#   -n restaurant \
+#   --dry-run=client -o yaml | kubectl apply -f -
+#
+# 4) Deploy
+# kubectl apply -f kube-deployment.yml
+# -----------------------------------------------------------------------------
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: restaurant
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: restaurant-mongo-pvc
+  namespace: restaurant
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: restaurant
+  labels:
+    app: restaurant-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: restaurant-db
+  template:
+    metadata:
+      labels:
+        app: restaurant-db
+    spec:
+      containers:
+        - name: mongodb
+          image: public.ecr.aws/docker/library/mongo:7
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongo-storage
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: mongo-storage
+          persistentVolumeClaim:
+            claimName: restaurant-mongo-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: restaurant
+spec:
+  type: ClusterIP
+  selector:
+    app: restaurant-db
+  ports:
+    - name: mongo
+      protocol: TCP
+      port: 27017
+      targetPort: 27017
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: restaurant-web
+  namespace: restaurant
+  labels:
+    app: restaurant-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: restaurant-web
+  template:
+    metadata:
+      labels:
+        app: restaurant-web
+    spec:
+      containers:
+        - name: web
+          # Bitte auf dein gebautes Image anpassen:
+          image: registry.shitlab.dev/jowin202/restaurant:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: restaurant-env
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "192Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: restaurant-service
+  namespace: restaurant
+spec:
+  type: ClusterIP
+  selector:
+    app: restaurant-web
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: restaurant-ingress
+  namespace: restaurant
+spec:
+  # ingressClassName: nginx
+  rules:
+    - host: fressen.shitlab.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: restaurant-service
+                port:
+                  number: 80

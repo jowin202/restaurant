@@ -1,0 +1,170 @@
+<div class="page">
+  <mat-card class="form-card">
+    <div class="head-row">
+      <h2>Item bearbeiten</h2>
+      <a mat-button routerLink="/items/list">
+        <mat-icon>arrow_back</mat-icon>
+        Zur Liste
+      </a>
+    </div>
+
+    <div *ngIf="loading()" class="loading">Lade Item...</div>
+
+    <form *ngIf="!loading()" [formGroup]="form" (ngSubmit)="saveItem()" class="form-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Typ</mat-label>
+        <mat-select formControlName="item_type">
+          <mat-option value="essen">Essen</mat-option>
+          <mat-option value="getränk">Getränk</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Menge</mat-label>
+        <input matInput type="number" formControlName="quantity" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Einheit</mat-label>
+        <input matInput formControlName="unit" placeholder="z. B. Stück, l, g" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>EAN</mat-label>
+        <input matInput formControlName="ean" />
+      </mat-form-field>
+
+      <div class="stock-row">
+        <mat-slide-toggle formControlName="in_stock">Im Kühlschrank verfügbar</mat-slide-toggle>
+      </div>
+
+      <div class="full-width">
+        <div class="attributes-header">
+          <h3>Attribute (Key + Value)</h3>
+          <button type="button" mat-stroked-button (click)="addAttributeRow()">
+            <mat-icon>add</mat-icon>
+            Attribut
+          </button>
+        </div>
+
+        <div class="attribute-row" *ngFor="let row of attributeRows(); let i = index; trackBy: trackByIndex">
+          <mat-form-field appearance="outline">
+            <mat-label>Key</mat-label>
+            <input matInput [value]="row.key" (input)="onAttributeKeyChange(i, $any($event.target).value)" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Value</mat-label>
+            <input
+              matInput
+              [value]="row.value"
+              (input)="onAttributeValueChange(i, $any($event.target).value)"
+              placeholder='Text, Zahl, true/false, JSON z. B. {"kcal":120}'
+            />
+          </mat-form-field>
+
+          <button type="button" mat-icon-button color="warn" (click)="removeAttributeRow(i)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="full-width">
+        <div class="attributes-header">
+          <h3>Bestell-Dialog Felder</h3>
+          <button type="button" mat-stroked-button (click)="addOrderAttributeRow()">
+            <mat-icon>add</mat-icon>
+            Frage
+          </button>
+        </div>
+
+        <div class="order-attribute-row" *ngFor="let row of orderAttributeRows(); let i = index; trackBy: trackByIndex">
+          <mat-form-field appearance="outline">
+            <mat-label>Key</mat-label>
+            <input matInput [value]="row.key" (input)="onOrderAttributeKeyChange(i, $any($event.target).value)" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Label im Dialog</mat-label>
+            <input matInput [value]="row.label" (input)="onOrderAttributeLabelChange(i, $any($event.target).value)" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Typ</mat-label>
+            <mat-select [value]="row.input_type" (selectionChange)="onOrderAttributeTypeChange(i, $event.value)">
+              <mat-option value="string">Text</mat-option>
+              <mat-option value="select">Auswahl</mat-option>
+              <mat-option value="boolean">Checkbox</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" *ngIf="row.input_type === 'select'">
+            <mat-label>Auswahlwerte</mat-label>
+            <input
+              matInput
+              [value]="row.options_text"
+              (input)="onOrderAttributeOptionsChange(i, $any($event.target).value)"
+              placeholder="z. B. klein,mittel,groß"
+            />
+          </mat-form-field>
+
+          <div class="required-toggle">
+            <mat-slide-toggle [checked]="row.required" (change)="onOrderAttributeRequiredChange(i, $event.checked)">
+              Pflichtfeld
+            </mat-slide-toggle>
+          </div>
+
+          <button type="button" mat-icon-button color="warn" (click)="removeOrderAttributeRow(i)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="full-width image-section">
+        <h3>Bild verwalten</h3>
+
+        <div class="image-preview" *ngIf="currentImageDataUrl() as image">
+          <img [src]="image" alt="Item Bild" />
+        </div>
+
+        <div class="upload-row">
+          <label for="itemImageEdit">Bild hochladen</label>
+          <input id="itemImageEdit" type="file" accept="image/*" #fileInput (change)="onFileSelected($event)" />
+          <div class="file-hint" *ngIf="selectedFile() as file">{{ file.name }}</div>
+          <button type="button" mat-button *ngIf="selectedFile()" (click)="clearFileSelection(fileInput)">Datei entfernen</button>
+          <button type="button" mat-stroked-button color="primary" [disabled]="imageBusy() || !selectedFile()" (click)="uploadImage()">
+            Datei hochladen
+          </button>
+        </div>
+
+        <div class="upload-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Bild-URL</mat-label>
+            <input
+              matInput
+              [value]="imageUrl()"
+              (input)="setImageUrl($any($event.target).value)"
+              placeholder="https://example.com/bild.jpg"
+            />
+          </mat-form-field>
+          <button type="button" mat-stroked-button [disabled]="imageBusy()" (click)="importImageFromUrl()">
+            URL übernehmen
+          </button>
+        </div>
+
+        <button type="button" mat-button color="warn" *ngIf="hasImage()" [disabled]="imageBusy()" (click)="removeImage()">
+          Bild entfernen
+        </button>
+      </div>
+
+      <div class="actions">
+        <button mat-flat-button color="primary" type="submit" [disabled]="saving() || imageBusy()">Speichern</button>
+      </div>
+    </form>
+  </mat-card>
+</div>

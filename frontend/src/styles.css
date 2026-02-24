@@ -1,0 +1,66 @@
+/* You can add global styles to this file, and also import other style files */
+
+@import '@angular/material/prebuilt-themes/azure-blue.css';
+
+html, body { height: 100%; }
+body { margin: 0; font-family: "Arial", sans-serif; }
+
+
+mat-sidenav,
+mat-sidenav * {
+  font-family:
+    -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Helvetica, Arial,
+    sans-serif !important;
+}
+
+
+.mat-datepicker-toggle,
+.mat-datepicker-content,
+.mat-calendar,
+.mat-calendar-body,
+.mat-date-range-input,
+.mat-calendar-body-cell,
+.mat-calendar-body-cell-content,
+.mdc-dialog__title,
+.mdc-dialog__content,
+.mdc-dialog__actions,
+.mdc-typography,
+.mat-mdc-typography,
+.mdc-label,
+.mdc-floating-label,
+.mat-mdc-button,
+.mat-mdc-card,
+.mat-mdc-form-field,
+.mat-mdc-checkbox,
+.mat-mdc-input-element,
+.mat-mdc-select,
+.mdc-button,
+.mdc-button__label,
+.mat-mdc-button-base,
+.mat-mdc-raised-button,
+.mat-mdc-flat-button,
+.mat-mdc-button,
+.mat-mdc-option,
+.mdc-list-item__primary-text,
+.mdc-list-item__secondary-text,
+.mat-mdc-list-item,
+.mat-mdc-paginator,
+.mat-mdc-nav-list,
+.mat-mdc-list-item-title,
+.mat-mdc-list-item-line {
+  font-family:
+    -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Helvetica, Arial,
+    sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" !important;
+}
+
+
+.mat-mdc-table,
+.mat-mdc-header-row,
+.mat-mdc-row,
+.mat-mdc-cell,
+.mat-mdc-header-cell {
+  font-family: Roboto, "Helvetica Neue", sans-serif !important;
+}

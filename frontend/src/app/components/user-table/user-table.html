@@ -1,0 +1,51 @@
+<div class="main-container">
+  <button mat-raised-button color="primary" (click)="addUser()">
+    <mat-icon>person_add</mat-icon> Benutzer hinzufügen
+  </button>
+
+  <table mat-table [dataSource]="users" class="mat-elevation-z2">
+
+    <ng-container matColumnDef="id">
+      <th mat-header-cell *matHeaderCellDef> ID </th>
+      <td mat-cell *matCellDef="let user"> {{user.id}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="username">
+      <th mat-header-cell *matHeaderCellDef> Username </th>
+      <td mat-cell *matCellDef="let user"> {{user.username}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef> Name </th>
+      <td mat-cell *matCellDef="let user"> {{user.name}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="mail">
+      <th mat-header-cell *matHeaderCellDef> Mail </th>
+      <td mat-cell *matCellDef="let user"> {{user.mail}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="role">
+      <th mat-header-cell *matHeaderCellDef> Status </th>
+      <td mat-cell *matCellDef="let user">
+        <mat-chip-set>
+          <mat-chip [class.admin-chip]="user.admin >= 1">
+            {{ user.admin === 2 ? 'Super-Admin' : (user.admin === 1 ? 'Admin' : 'Nutzer') }}
+          </mat-chip>
+        </mat-chip-set>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef> Aktionen </th>
+      <td mat-cell *matCellDef="let user">
+        <button mat-icon-button color="warn" [disabled]="!canAction(user)" (click)="deleteUser(user)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+</div>

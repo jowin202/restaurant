@@ -1,0 +1,56 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+
+from db import get_db
+from helper import calc_hmac, token_generate
+from security import verify_token
+
+router = APIRouter()
+
+
+@router.post("/")
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    username = form_data.username
+    raw_password = form_data.password
+    hashed_password = calc_hmac(raw_password)
+    token = token_generate()
+
+    db = await get_db()
+    user = await db.users.find_one(
+        {"username": username, "deleted": False},
+        {"_id": 0, "id": 1, "username": 1, "password": 1, "admin": 1, "name": 1, "mail": 1},
+    )
+
+    if not user or not user.get("password") or user["password"] != hashed_password:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    await db.users.update_one({"id": user["id"]}, {"$set": {"token": token}})
+
+    return {
+        "access_token": token,
+        "admin": user["admin"],
+        "token_type": "bearer",
+    }
+
+
+@router.get("/from_token/{token}/")
+async def login_token(token: str):
+    db = await get_db()
+    row = await db.users.find_one(
+        {"token": token, "deleted": False},
+        {"_id": 0, "id": 1, "username": 1, "admin": 1},
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"username": row.get("username", ""), "admin": row.get("admin", 0)}
+
+
+@router.get("/logout/")
+async def logout(token: str = Depends(verify_token)):
+    db = await get_db()
+    await db.users.update_one({"token": token}, {"$set": {"token": ""}})
+    return True

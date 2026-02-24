@@ -1,0 +1,87 @@
+<div class="page">
+  <div class="summary-grid" *ngIf="dashboardData() as data">
+    <mat-card class="summary-card">
+      <div class="label">Items gesamt</div>
+      <div class="value">{{ data.summary.total_items }}</div>
+    </mat-card>
+
+    <mat-card class="summary-card">
+      <div class="label">Essen</div>
+      <div class="value">{{ data.summary.total_food }}</div>
+    </mat-card>
+
+    <mat-card class="summary-card">
+      <div class="label">Getränke</div>
+      <div class="value">{{ data.summary.total_drinks }}</div>
+    </mat-card>
+
+    <mat-card class="summary-card">
+      <div class="label">Mit Bild</div>
+      <div class="value">{{ data.summary.total_with_images }}</div>
+    </mat-card>
+  </div>
+
+  <mat-card class="list-card">
+    <div class="list-header">
+      <h2>Essen & Getränke</h2>
+
+      <div class="header-actions">
+        <mat-form-field appearance="outline">
+          <mat-label>Suchen</mat-label>
+          <input matInput (input)="onSearchChange($any($event.target).value)" placeholder="Name, Typ, EAN, Attribut" />
+        </mat-form-field>
+
+        <a mat-flat-button color="primary" routerLink="/items/new">
+          <mat-icon>add</mat-icon>
+          Neues Item
+        </a>
+      </div>
+    </div>
+
+    <div *ngIf="loading()" class="loading">Lade Daten...</div>
+    <div *ngIf="!loading() && visibleItems().length === 0" class="loading">Keine Items gefunden.</div>
+
+    <div class="item-grid" *ngIf="!loading() && visibleItems().length > 0">
+      <div class="item-card" *ngFor="let item of visibleItems()">
+        <div class="image-wrap" *ngIf="item.image_data_url">
+          <img [src]="item.image_data_url" [alt]="item.name" />
+        </div>
+
+        <div class="item-head">
+          <h3>{{ item.name }}</h3>
+          <span class="type">{{ item.item_type }}</span>
+        </div>
+
+        <div class="meta">
+          <span>{{ item.in_stock ? 'Verfügbar' : 'Nicht verfügbar' }}</span>
+          <span *ngIf="item.quantity !== null">{{ item.quantity }} {{ item.unit || '' }}</span>
+        </div>
+
+        <div class="meta" *ngIf="item.ean">
+          <span>EAN: {{ item.ean }}</span>
+        </div>
+
+        <div class="attrs" *ngIf="(item.attributes | keyvalue).length > 0">
+          <div class="attr" *ngFor="let entry of item.attributes | keyvalue">
+            <strong>{{ entry.key }}:</strong>
+            <span>{{ entry.value }}</span>
+          </div>
+        </div>
+
+        <div class="item-actions">
+          <a mat-button color="primary" [routerLink]="['/items', item.id, 'edit']">Bearbeiten</a>
+          <button mat-button color="warn" (click)="remove(item)">Löschen</button>
+          <button mat-button *ngIf="item.has_image" (click)="removeImage(item)">Bild entfernen</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert-box" *ngIf="dashboardData()?.alerts?.low_stock?.length">
+      <h3>Niedriger Bestand</h3>
+      <div class="alert-row" *ngFor="let low of dashboardData()?.alerts?.low_stock">
+        <span>{{ low.name }}</span>
+        <strong>{{ low.quantity }} {{ low.unit || '' }}</strong>
+      </div>
+    </div>
+  </mat-card>
+</div>

@@ -1,0 +1,47 @@
+<div class="login-wrapper">
+  <mat-card>
+
+    <div class="logo-container">
+      <img src="/logo.png" alt="Logo" class="login-logo">
+    </div>
+    <h1>Login</h1>
+
+    <form [formGroup]="form" (ngSubmit)="onLogin()">
+
+      <!-- Username -->
+      <mat-form-field appearance="outline">
+        <mat-label>Username</mat-label>
+        <input matInput formControlName="username" />
+      </mat-form-field>
+
+      <!-- Password -->
+      <mat-form-field appearance="outline">
+        <mat-label>Password</mat-label>
+        <input matInput type="password" formControlName="password" />
+      </mat-form-field>
+
+      <!-- Fehlertext (immer im DOM – nie ngIf) -->
+      <div class="error-msg">{{ passwordErrorText() }}</div>
+
+      <mat-checkbox formControlName="stayLoggedIn">
+        Eingeloggt bleiben
+      </mat-checkbox>
+
+      <!-- Login Button -->
+      <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || loading()">
+
+        <!-- Button-Text sichtbar nur wenn NICHT loading -->
+        <span [style.display]="loading() ? 'none' : 'inline'">
+          Login
+        </span>
+
+        <!-- Spinner sichtbar nur wenn loading -->
+        <mat-spinner diameter="20" [style.display]="loading() ? 'inline-block' : 'none'">
+        </mat-spinner>
+
+      </button>
+
+    </form>
+
+  </mat-card>
+</div>

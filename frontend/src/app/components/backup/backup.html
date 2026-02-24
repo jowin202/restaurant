@@ -1,0 +1,55 @@
+<div class="mgmt-container">
+  <mat-card class="mgmt-card">
+    <mat-card-title>Datenbank-Verwaltung</mat-card-title>
+    <mat-card-subtitle>Sicherung und Wiederherstellung</mat-card-subtitle>
+
+    <hr class="divider" />
+
+    <div class="section">
+      <h3>1. Backup erstellen</h3>
+      <p class="description">Laden Sie einen vollständigen SQL-Dump inkl. digitaler Signatur herunter.</p>
+      <button mat-raised-button color="primary" (click)="downloadBackup()" [disabled]="loading()">
+        <mat-icon>download</mat-icon> Backup Jetzt Herunterladen
+      </button>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="section">
+      <h3>2. Restore einspielen</h3>
+      <p class="description">Wählen Sie eine signierte Backup-Datei aus, um die Datenbank zu überschreiben.</p>
+      
+      <div class="upload-actions">
+        <input type="file" hidden #fileInput (change)="onFileSelected($event)" accept=".sql" />
+        <button mat-stroked-button type="button" (click)="fileInput.click()" [disabled]="loading()">
+          Datei auswählen
+        </button>
+        @if (file) {
+          <span class="file-name">📄 {{ file.name }}</span>
+        }
+      </div>
+
+      <button
+        mat-raised-button
+        color="warn"
+        class="restore-button"
+        [disabled]="!file || loading()"
+        (click)="restoreDatabase()"
+      >
+        <mat-icon>restore</mat-icon> Datenbank Wiederherstellen
+      </button>
+    </div>
+
+    @if (loading()) {
+      <div class="spinner-wrapper">
+        <mat-spinner diameter="30"></mat-spinner>
+      </div>
+    } 
+    
+    @if (message()) {
+      <div class="status-message" [class.error]="error()">
+        {{ message() }}
+      </div>
+    }
+  </mat-card>
+</div>

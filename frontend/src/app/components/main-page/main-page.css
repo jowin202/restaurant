@@ -1,0 +1,44 @@
+.container {
+    height: 100vh;
+  }
+  
+  /* Standardbreite Desktop */
+  .sidenav {
+    width: 280px;
+    border-right: 1px solid rgba(0,0,0,0.12);
+  }
+  
+  .sidebar-header {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding-left: 16px;
+    font-size: 18px;
+  }
+  
+  .content {
+    padding: 20px;
+  }
+  
+  mat-expansion-panel {
+    --mdc-theme-surface: transparent;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  
+  a.mat-list-item {
+    padding-left: 24px;
+  }
+  
+  /* Anpassungen für Mobile Geräte */
+  @media (max-width: 600px) {
+    .sidenav {
+      /* Auf Handy etwas schmaler, damit man rechts hinklicken kann zum schließen */
+      width: 75vw; 
+      max-width: 280px;
+    }
+  
+    .content {
+      padding: 10px; /* Weniger Platzverschwendung auf kleinen Screens */
+    }
+  }

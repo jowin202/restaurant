@@ -1,0 +1,208 @@
+<div class="page">
+  <mat-card class="form-card">
+    <div class="head-row">
+      <h2>Neues Essen/Getränk anlegen</h2>
+      <a mat-button routerLink="/items/list">
+        <mat-icon>list</mat-icon>
+        Zur Liste
+      </a>
+    </div>
+
+    <div class="ean-box">
+      <h3>EAN / Strichcode erfassen</h3>
+
+      <div class="ean-row">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>EAN Code</mat-label>
+          <input matInput [value]="eanInput()" (input)="setEanInput($any($event.target).value)" placeholder="z. B. 761303..." />
+        </mat-form-field>
+
+        <button mat-stroked-button color="primary" (click)="lookupEan()">EAN suchen</button>
+
+        <button mat-stroked-button type="button" (click)="toggleScanner()" [disabled]="!scannerSupported() || scannerLoading()">
+          <mat-icon>{{ scannerActive() ? 'stop' : 'camera_alt' }}</mat-icon>
+          {{ scannerActive() ? 'Scanner stoppen' : (scannerLoading() ? 'Scanner lädt...' : 'Webcam Scanner') }}
+        </button>
+      </div>
+
+      <video #eanVideo autoplay playsinline muted [class.hidden-video]="!scannerActive()"></video>
+
+      <div class="ean-status" *ngIf="scannerLoading()">ZXing Scanner wird geladen...</div>
+      <div class="ean-status" *ngIf="eanLookupLoading()">Suche läuft...</div>
+      <div class="ean-status" *ngIf="!scannerSupported()">
+        Kamerazugriff im Browser nicht verfügbar. Bitte EAN manuell eingeben.
+      </div>
+
+      <div class="ean-result" *ngIf="eanLookupResult() as lookup">
+        @if (lookup.known && lookup.item) {
+        <div class="known-box">
+          <strong>Bekannter EAN:</strong> {{ lookup.item.name }}
+          <div class="small-muted">Aktueller Bestand: {{ lookup.item.quantity ?? 0 }} {{ lookup.item.unit || '' }}</div>
+
+          <div class="known-actions">
+            <mat-form-field appearance="outline" class="small-number">
+              <mat-label>Menge erhöhen</mat-label>
+              <input matInput type="number" [value]="stockIncrease()" (input)="setStockIncrease($any($event.target).value)" />
+            </mat-form-field>
+
+            <button mat-flat-button color="primary" (click)="increaseStockForKnownEan()">Lagerbestand erhöhen</button>
+          </div>
+        </div>
+        } @else {
+          @if (lookup.metadata_found) {
+          <div class="known-box">
+            <strong>Unbekannter EAN, Metadaten gefunden.</strong>
+            <div class="small-muted">Formular wurde vorausgefüllt. Bitte prüfen und speichern.</div>
+          </div>
+          } @else {
+          <div class="known-box warn">
+            <strong>Kein API-Treffer.</strong>
+            <div class="small-muted">Bitte Produktdaten manuell eintragen.</div>
+          </div>
+          }
+        }
+      </div>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Typ</mat-label>
+        <mat-select formControlName="item_type">
+          <mat-option value="essen">Essen</mat-option>
+          <mat-option value="getränk">Getränk</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Menge</mat-label>
+        <input matInput type="number" formControlName="quantity" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Einheit</mat-label>
+        <input matInput formControlName="unit" placeholder="z. B. Stück, l, g" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>EAN</mat-label>
+        <input matInput formControlName="ean" />
+      </mat-form-field>
+
+      <div class="stock-row">
+        <mat-slide-toggle formControlName="in_stock">Im Kühlschrank verfügbar</mat-slide-toggle>
+      </div>
+
+      <div class="full-width">
+        <div class="attributes-header">
+          <h3>Attribute (Key + Value)</h3>
+          <button type="button" mat-stroked-button (click)="addAttributeRow()">
+            <mat-icon>add</mat-icon>
+            Attribut
+          </button>
+        </div>
+
+        <div class="attribute-row" *ngFor="let row of attributeRows(); let i = index; trackBy: trackByIndex">
+          <mat-form-field appearance="outline">
+            <mat-label>Key</mat-label>
+            <input matInput [value]="row.key" (input)="onAttributeKeyChange(i, $any($event.target).value)" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Value</mat-label>
+            <input
+              matInput
+              [value]="row.value"
+              (input)="onAttributeValueChange(i, $any($event.target).value)"
+              placeholder='Text, Zahl, true/false, JSON z. B. {"kcal":120}'
+            />
+          </mat-form-field>
+
+          <button type="button" mat-icon-button color="warn" (click)="removeAttributeRow(i)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="full-width">
+        <div class="attributes-header">
+          <h3>Bestell-Dialog Felder</h3>
+          <button type="button" mat-stroked-button (click)="addOrderAttributeRow()">
+            <mat-icon>add</mat-icon>
+            Frage
+          </button>
+        </div>
+
+        <div class="order-attribute-row" *ngFor="let row of orderAttributeRows(); let i = index; trackBy: trackByIndex">
+          <mat-form-field appearance="outline">
+            <mat-label>Key</mat-label>
+            <input matInput [value]="row.key" (input)="onOrderAttributeKeyChange(i, $any($event.target).value)" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Label im Dialog</mat-label>
+            <input matInput [value]="row.label" (input)="onOrderAttributeLabelChange(i, $any($event.target).value)" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Typ</mat-label>
+            <mat-select [value]="row.input_type" (selectionChange)="onOrderAttributeTypeChange(i, $event.value)">
+              <mat-option value="string">Text</mat-option>
+              <mat-option value="select">Auswahl</mat-option>
+              <mat-option value="boolean">Checkbox</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" *ngIf="row.input_type === 'select'">
+            <mat-label>Auswahlwerte</mat-label>
+            <input
+              matInput
+              [value]="row.options_text"
+              (input)="onOrderAttributeOptionsChange(i, $any($event.target).value)"
+              placeholder="z. B. klein,mittel,groß"
+            />
+          </mat-form-field>
+
+          <div class="required-toggle">
+            <mat-slide-toggle [checked]="row.required" (change)="onOrderAttributeRequiredChange(i, $event.checked)">
+              Pflichtfeld
+            </mat-slide-toggle>
+          </div>
+
+          <button type="button" mat-icon-button color="warn" (click)="removeOrderAttributeRow(i)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="full-width upload-row">
+        <label for="itemImage">Bild hochladen (optional)</label>
+        <input id="itemImage" type="file" accept="image/*" #fileInput (change)="onFileSelected($event)" />
+        <div class="file-hint" *ngIf="selectedFile() as file">{{ file.name }}</div>
+        <button type="button" mat-button *ngIf="selectedFile()" (click)="clearFileSelection(fileInput)">Datei entfernen</button>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Bild-URL (alternativ zum Upload)</mat-label>
+          <input
+            matInput
+            [value]="imageUrl()"
+            (input)="setImageUrl($any($event.target).value)"
+            placeholder="https://example.com/bild.jpg"
+          />
+        </mat-form-field>
+        <div class="small-muted">Bitte entweder Datei oder URL verwenden.</div>
+      </div>
+
+      <div class="actions">
+        <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
+          Speichern
+        </button>
+        <button mat-button type="button" (click)="resetForm()">Zurücksetzen</button>
+      </div>
+    </form>
+  </mat-card>
+</div>

@@ -1,0 +1,33 @@
+.main-container {
+  padding: 24px;
+  /* Das sorgt dafür, dass der Inhalt sich an den verfügbaren Platz anpasst 
+     und nicht unter die Sidenav rutscht */
+  display: block;
+  box-sizing: border-box;
+}
+
+.header-row {
+  margin-bottom: 20px;
+}
+
+.table-wrapper {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  background: #eee;
+  &.admin {
+    background: #ffdada;
+    color: #cc0000;
+    font-weight: bold;
+  }
+}

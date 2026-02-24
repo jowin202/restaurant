@@ -1,0 +1,42 @@
+<h2 mat-dialog-title>Neuer Benutzer</h2>
+<mat-dialog-content>
+  <div style="display: flex; flex-direction: column; gap: 15px; padding-top: 10px;">
+
+    <mat-form-field appearance="outline">
+      <mat-label>Username</mat-label>
+      <input matInput [(ngModel)]="data.username">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Name</mat-label>
+      <input matInput [(ngModel)]="data.name">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>E-Mail</mat-label>
+      <input matInput type="email" [(ngModel)]="data.mail">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Passwort</mat-label>
+      <input matInput type="password" [(ngModel)]="data.password">
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Rolle</mat-label>
+      <mat-select [(ngModel)]="data.admin">
+        <mat-option [value]="0">Nutzer</mat-option>
+        @if (data.maxLevel > 1)
+        {
+        <mat-option [value]="1">Admin</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onNoClick()">Abbrechen</button>
+  <button mat-raised-button color="primary" [mat-dialog-close]="data">Speichern</button>
+</mat-dialog-actions>

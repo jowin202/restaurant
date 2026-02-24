@@ -1,0 +1,83 @@
+<div class="shop-page">
+  <div class="shop-header">
+    <h1>Online Shop</h1>
+    <div class="cart-badge">Warenkorb: {{ cartCount() }}</div>
+  </div>
+
+  <div class="shop-layout">
+    <mat-card class="catalog-card">
+      <div class="filters">
+        <mat-form-field appearance="outline">
+          <mat-label>Suchen</mat-label>
+          <input matInput (input)="setSearch($any($event.target).value)" placeholder="z. B. Pizza" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Typ</mat-label>
+          <mat-select [value]="typeFilter()" (selectionChange)="setTypeFilter($event.value)">
+            <mat-option value="all">Alle</mat-option>
+            <mat-option value="essen">Essen</mat-option>
+            <mat-option value="getränk">Getränke</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div *ngIf="loading()" class="loading">Lade Shop...</div>
+      <div *ngIf="!loading() && visibleItems().length === 0" class="loading">Keine Produkte gefunden.</div>
+
+      <div class="product-grid" *ngIf="!loading() && visibleItems().length > 0">
+        <div class="product-card" *ngFor="let item of visibleItems()">
+          <div class="image-wrap" *ngIf="item.image_data_url">
+            <img [src]="item.image_data_url" [alt]="item.name" />
+          </div>
+
+          <h3>{{ item.name }}</h3>
+          <div class="meta">{{ item.item_type }}<span *ngIf="item.quantity !== null"> | Verfügbar: {{ item.quantity }} {{ item.unit || '' }}</span></div>
+
+          <button mat-flat-button color="primary" (click)="addToCart(item)">
+            {{ (item.order_attributes?.length || 0) > 0 ? 'Auswählen' : 'In den Warenkorb' }}
+          </button>
+        </div>
+      </div>
+    </mat-card>
+
+    <mat-card class="cart-card">
+      <h2>Warenkorb</h2>
+
+      <div *ngIf="cart().length === 0" class="loading">Noch keine Artikel ausgewählt.</div>
+
+      <div class="cart-list" *ngIf="cart().length > 0">
+        <div class="cart-line" *ngFor="let line of cart()">
+          <div>
+            <strong>{{ line.item.name }}</strong>
+            <div class="meta">{{ line.item.item_type }}</div>
+            <div class="line-answers" *ngIf="lineAnswerEntries(line).length > 0">
+              <div class="answer-chip" *ngFor="let entry of lineAnswerEntries(line)">
+                {{ entry.label }}: {{ entry.value }}
+              </div>
+            </div>
+          </div>
+
+          <div class="line-actions">
+            <button
+              mat-icon-button
+              *ngIf="(line.item.order_attributes?.length || 0) > 0"
+              (click)="editAnswers(line)"
+              aria-label="Konfiguration bearbeiten"
+            >
+              <mat-icon>tune</mat-icon>
+            </button>
+            <button mat-icon-button (click)="decrement(line)"><mat-icon>remove</mat-icon></button>
+            <span>{{ line.quantity }}</span>
+            <button mat-icon-button (click)="increment(line)"><mat-icon>add</mat-icon></button>
+            <button mat-icon-button color="warn" (click)="remove(line)"><mat-icon>delete</mat-icon></button>
+          </div>
+        </div>
+      </div>
+
+      <button mat-flat-button color="accent" [disabled]="ordering() || cart().length === 0" (click)="orderNow()">
+        Bestellen
+      </button>
+    </mat-card>
+  </div>
+</div>

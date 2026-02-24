@@ -1,0 +1,64 @@
+<mat-sidenav-container class="container">
+  <mat-sidenav
+    #sidenav
+    class="sidenav"
+    [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
+    [mode]="(isHandset$ | async) ? 'over' : 'side'"
+    [opened]="(isHandset$ | async) === false"
+  >
+    <mat-toolbar class="sidebar-header" color="primary">
+      <span>Menü</span>
+    </mat-toolbar>
+
+    <mat-nav-list>
+      @if(this.auth.admin_level() === 0)
+      {
+      <a mat-list-item routerLink="/shop" (click)="closeOnMobile()">Online Shop</a>
+      }
+
+      @if(this.auth.admin_level() > 0)
+      {
+      <a mat-list-item routerLink="/items/list" (click)="closeOnMobile()">Essen/Getränke Liste</a>
+      <a mat-list-item routerLink="/items/new" (click)="closeOnMobile()">Neues Item anlegen</a>
+      }
+
+      @if(this.auth.admin_level() > 1)
+      {
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Super Admin</mat-panel-title>
+        </mat-expansion-panel-header>
+
+        <a mat-list-item routerLink="/users" (click)="closeOnMobile()">Benutzerverwaltung</a>
+        <a mat-list-item routerLink="/settings" (click)="closeOnMobile()">Einstellungen</a>
+      </mat-expansion-panel>
+      }
+
+      <a mat-list-item (click)="logout()" style="margin-top: 20px">
+        <span>Logout</span>
+      </a>
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <mat-toolbar color="primary">
+      @if (isHandset$ | async) {
+      <button
+        type="button"
+        aria-label="Toggle sidenav"
+        mat-icon-button
+        (click)="sidenav.toggle()"
+        style="margin-right: 10px"
+      >
+        <mat-icon>menu</mat-icon>
+      </button>
+      }
+
+      <span>{{ this.auth.admin_level() === 0 ? 'Restaurant Shop' : 'Restaurant Verwaltung' }}</span>
+    </mat-toolbar>
+
+    <div class="content">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

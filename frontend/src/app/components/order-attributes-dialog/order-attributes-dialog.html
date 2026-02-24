@@ -1,0 +1,32 @@
+<h2 mat-dialog-title>Bestellung konfigurieren</h2>
+
+<mat-dialog-content>
+  <p class="item-title">{{ data.itemName }}</p>
+
+  <form [formGroup]="form" class="dialog-form">
+    <div class="field-row" *ngFor="let attr of data.attributes">
+      <ng-container [ngSwitch]="attr.input_type">
+        <mat-form-field appearance="outline" *ngSwitchCase="'string'" class="full-width">
+          <mat-label>{{ attr.label }}</mat-label>
+          <input matInput [formControlName]="attr.key" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" *ngSwitchCase="'select'" class="full-width">
+          <mat-label>{{ attr.label }}</mat-label>
+          <mat-select [formControlName]="attr.key">
+            <mat-option *ngFor="let option of attr.options" [value]="option">{{ option }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-checkbox *ngSwitchCase="'boolean'" [formControlName]="attr.key">
+          {{ attr.label }}
+        </mat-checkbox>
+      </ng-container>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Abbrechen</button>
+  <button mat-flat-button color="primary" type="button" (click)="submit()">Übernehmen</button>
+</mat-dialog-actions>

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+motor
+python-multipart
+jinja2
+reportlab
+python-dateutil
+requests
+qrcode
+rfc8785
