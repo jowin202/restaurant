@@ -175,11 +175,6 @@ export class Inventory implements OnInit, OnDestroy {
     this.adjustStock(item.id, delta, direction, true);
   }
 
-  quickAdjust(item: Item, direction: 'consume' | 'restock'): void {
-    const delta = direction === 'consume' ? -1 : 1;
-    this.adjustStock(item.id, delta, direction, false);
-  }
-
   rowAdjust(item: Item, direction: 'consume' | 'restock'): void {
     const base = this.getRowDelta(item.id);
     const delta = direction === 'consume' ? -base : base;

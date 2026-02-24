@@ -89,6 +89,7 @@ export class AuthService {
      LOGIN FROM TOKEN (Auto-Login aus localStorage/sessionStorage)
   ------------------------------------------------------ */
   do_login_from_token(token: string): void {
+    this.ready.set(false);
 
     const headers = new HttpHeaders({
       'Content-Type': 'application/json',
@@ -108,10 +109,44 @@ export class AuthService {
         this.username.set(response["username"]);
         this.admin_level.set(response["admin"]);
         this.logged_in.set(true);
+        sessionStorage.setItem("token", token);
 
       }
 
       // Egal ob erfolgreich oder fehlgeschlagen:
+      this.ready.set(true);
+    });
+  }
+
+  do_login_with_magic_token(token: string): void {
+    this.password_error.set(false);
+    this.ready.set(false);
+
+    const headers = new HttpHeaders({
+      'accept': 'application/json',
+      'Content-Type': 'application/json'
+    });
+
+    this.http.post("/api/login/magic/", { token }, { headers }).pipe(
+      map((response: any) => {
+        if (!this.isJson(response)) {
+          throw new Error("Response is not valid JSON.");
+        }
+        return response;
+      }),
+      catchError(() => {
+        this.password_error.set(true);
+        return of(null);
+      })
+    ).subscribe((response) => {
+      if (response && "access_token" in response && "admin" in response) {
+        this.admin_level.set(response["admin"]);
+        this.token.set(response["access_token"]);
+        this.username.set((response["username"] ?? '').toString());
+        this.logged_in.set(true);
+        sessionStorage.setItem("token", response["access_token"]);
+      }
+
       this.ready.set(true);
     });
   }

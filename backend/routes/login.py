@@ -2,12 +2,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 
 from db import get_db, normalize_username
 from helper import calc_hmac, token_generate
 from security import verify_token
 
 router = APIRouter()
+
+
+class MagicLoginRequest(BaseModel):
+    token: str
 
 
 @router.post("/")
@@ -19,7 +24,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
 
     db = await get_db()
     user = await db.users.find_one(
-        {"username_normalized": username_normalized, "deleted": False},
+        {"username_normalized": username_normalized},
         {"_id": 0, "id": 1, "username": 1, "password": 1, "admin": 1, "name": 1, "mail": 1},
     )
 
@@ -35,11 +40,37 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     }
 
 
+@router.post("/magic/")
+async def login_magic(data: MagicLoginRequest):
+    magic_token = str(data.token or "").strip()
+    if not magic_token:
+        raise HTTPException(status_code=400, detail="Magic token fehlt")
+
+    db = await get_db()
+    user = await db.users.find_one(
+        {"magic_login_token": magic_token},
+        {"_id": 0, "id": 1, "username": 1, "admin": 1},
+    )
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Ungültiger Login-Link")
+
+    session_token = token_generate()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"token": session_token}})
+
+    return {
+        "access_token": session_token,
+        "username": user.get("username", ""),
+        "admin": user["admin"],
+        "token_type": "bearer",
+    }
+
+
 @router.get("/from_token/{token}/")
 async def login_token(token: str):
     db = await get_db()
     row = await db.users.find_one(
-        {"token": token, "deleted": False},
+        {"token": token},
         {"_id": 0, "id": 1, "username": 1, "admin": 1},
     )
 

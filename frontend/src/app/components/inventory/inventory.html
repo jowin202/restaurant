@@ -59,13 +59,6 @@
           </div>
 
           <div class="right">
-            <button mat-icon-button color="warn" (click)="quickAdjust(item, 'consume')" aria-label="-1">
-              <mat-icon>remove</mat-icon>
-            </button>
-            <button mat-icon-button color="primary" (click)="quickAdjust(item, 'restock')" aria-label="+1">
-              <mat-icon>add</mat-icon>
-            </button>
-
             <mat-form-field appearance="outline" class="small-input">
               <mat-label>Delta</mat-label>
               <input
@@ -76,8 +69,8 @@
               />
             </mat-form-field>
 
-            <button mat-stroked-button color="warn" (click)="rowAdjust(item, 'consume')">-</button>
-            <button mat-stroked-button color="primary" (click)="rowAdjust(item, 'restock')">+</button>
+            <button mat-icon-button color="warn" (click)="rowAdjust(item, 'consume')"><mat-icon>remove</mat-icon></button>
+            <button mat-icon-button color="primary" (click)="rowAdjust(item, 'restock')"><mat-icon>add</mat-icon></button>
           </div>
         </div>
       </div>

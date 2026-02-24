@@ -7,7 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { AuthService } from '../../services/auth.services';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-login-page',
@@ -27,6 +27,7 @@ export class LoginPage {
 
   
   loading = signal(false);
+  linkLoginTried = signal(false);
 
   passwordErrorText = signal('');
 
@@ -36,7 +37,7 @@ export class LoginPage {
     stayLoggedIn: new FormControl(false, { nonNullable: true })
   });
 
-  constructor(private auth: AuthService, private router: Router) {
+  constructor(private auth: AuthService, private router: Router, private route: ActivatedRoute) {
 
     // Fehler automatisch anzeigen, wenn Backend 400 liefert
     effect(() => {
@@ -59,6 +60,22 @@ export class LoginPage {
         // 🔥 Weiterleitung zur Hauptseite
         this.router.navigate(['/']);
       }
+    });
+
+    const magicTokenFromLink = this.route.snapshot.queryParamMap.get('magic');
+    if (magicTokenFromLink && magicTokenFromLink.trim().length > 0) {
+      this.linkLoginTried.set(true);
+      this.loading.set(true);
+      this.auth.do_login_with_magic_token(magicTokenFromLink.trim());
+    }
+
+    effect(() => {
+      if (!this.linkLoginTried()) return;
+      if (this.auth.logged_in()) return;
+      if (!this.auth.ready()) return;
+
+      this.loading.set(false);
+      this.passwordErrorText.set('Login-Link ist ungültig.');
     });
 
   }

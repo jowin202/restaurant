@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from db import initialize_connection_pool, pg_db_init
+from db import db_init, initialize_connection_pool
 from security import verify_token, verify_token_super_admin
 from settingsmgr import SettingsManager
 
@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
         try:
             print("Waiting for DB...", flush=True)
             await initialize_connection_pool()
-            await pg_db_init()
+            await db_init()
             db_is_ready = True
             print("DB ready!", flush=True)
         except Exception as e:

@@ -3,6 +3,50 @@
     <mat-icon>person_add</mat-icon> Benutzer hinzufügen
   </button>
 
+  <div class="bulk-card">
+    <h3>Bulk Import Nutzer</h3>
+    <p>Eine Zeile pro Nutzer (voller Name). Usernamen werden automatisch erzeugt, immer als Nutzer ohne Adminrechte.</p>
+
+    <mat-form-field appearance="outline" class="bulk-input">
+      <mat-label>Voller Name je Zeile</mat-label>
+      <textarea
+        matInput
+        rows="8"
+        [value]="bulkLines"
+        (input)="setBulkLines($any($event.target).value)"
+        placeholder="Max Mustermann&#10;Erika Musterfrau&#10;Hans Müller"
+      ></textarea>
+    </mat-form-field>
+
+    <div class="bulk-actions">
+      <button mat-flat-button color="primary" (click)="bulkImportUsers()" [disabled]="bulkLoading">
+        Nutzer importieren
+      </button>
+    </div>
+
+    <div class="bulk-result" *ngIf="bulkResult as result">
+      <div class="bulk-summary">
+        Importiert: <strong>{{ result.created_count }}</strong> von {{ result.line_count }} Zeilen
+      </div>
+      <div class="bulk-summary" *ngIf="result.printer_ip">Drucker: {{ result.printer_ip }}</div>
+
+      <div class="bulk-warnings" *ngIf="result.warnings?.length">
+        <div class="warning" *ngFor="let warning of result.warnings">{{ warning }}</div>
+      </div>
+
+      <div class="bulk-users" *ngIf="result.users?.length">
+        <div class="bulk-user-row" *ngFor="let user of result.users">
+          <div>
+            <div><strong>{{ user.name }}</strong> ({{ user.username }})</div>
+            <div class="print-status">{{ printerStatusLabel(user.print_status) }}</div>
+            <div class="print-error" *ngIf="user.print_error">{{ user.print_error }}</div>
+          </div>
+          <button mat-stroked-button type="button" (click)="copyLink(user.login_link)">Link kopieren</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <table mat-table [dataSource]="users" class="mat-elevation-z2">
 
     <ng-container matColumnDef="id">
@@ -39,6 +83,22 @@
     <ng-container matColumnDef="actions">
       <th mat-header-cell *matHeaderCellDef> Aktionen </th>
       <td mat-cell *matCellDef="let user">
+        <button
+          mat-icon-button
+          [disabled]="!canUserLinkActions(user)"
+          matTooltip="Login-Link kopieren"
+          (click)="copyUserLoginLink(user)"
+        >
+          <mat-icon>content_copy</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          [disabled]="!canUserLinkActions(user)"
+          matTooltip="Willkommen erneut drucken"
+          (click)="reprintWelcome(user)"
+        >
+          <mat-icon>print</mat-icon>
+        </button>
         <button mat-icon-button color="warn" [disabled]="!canAction(user)" (click)="deleteUser(user)">
           <mat-icon>delete</mat-icon>
         </button>

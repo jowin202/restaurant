@@ -195,23 +195,6 @@ def _normalize_image_entries(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
                 }
             )
 
-    legacy_image = doc.get("image")
-    if isinstance(legacy_image, dict):
-        content_type = legacy_image.get("content_type")
-        data = legacy_image.get("data_base64")
-        if content_type and data:
-            legacy_id = str(legacy_image.get("id") or "legacy")
-            if not any(x["id"] == legacy_id for x in entries):
-                entries.append(
-                    {
-                        "id": legacy_id,
-                        "filename": str(legacy_image.get("filename") or "image"),
-                        "content_type": str(content_type),
-                        "data_base64": str(data),
-                        "created_at": legacy_image.get("created_at"),
-                    }
-                )
-
     return entries
 
 
@@ -357,7 +340,6 @@ async def _append_image_entry(item_oid: ObjectId, image_entry: Dict[str, Any]):
                 "images": entries,
                 "updated_at": datetime.now(timezone.utc),
             },
-            "$unset": {"image": ""},
         },
     )
 
@@ -806,7 +788,7 @@ async def delete_item_image(item_id: str, image_id: Optional[str] = Query(defaul
         await db.items.update_one(
             {"_id": oid},
             {
-                "$unset": {"image": "", "images": ""},
+                "$unset": {"images": ""},
                 "$set": {"updated_at": datetime.now(timezone.utc)},
             },
         )
@@ -815,7 +797,6 @@ async def delete_item_image(item_id: str, image_id: Optional[str] = Query(defaul
             {"_id": oid},
             {
                 "$set": {"images": remaining, "updated_at": datetime.now(timezone.utc)},
-                "$unset": {"image": ""},
             },
         )
 
