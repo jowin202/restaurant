@@ -38,18 +38,6 @@ mat-form-field {
   padding-left: 4px;
 }
 
-.logo-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.login-logo {
-  max-width: 180px; /* Etwas kleiner wirkt oft edler */
-  height: auto;
-  display: block;
-}
-
 /* Den Button wieder auf volle Breite bringen */
 button[type="submit"] {
   width: 100%;
