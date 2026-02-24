@@ -53,6 +53,7 @@
 }
 
 .image-wrap {
+  position: relative;
   width: 100%;
   height: 120px;
   border-radius: 8px;
@@ -64,6 +65,18 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.image-count-badge {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  background: rgba(0, 0, 0, 0.66);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .meta {

@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
+import { prepareImageForUpload } from '../../shared/image-utils';
 
 type ItemType = 'essen' | 'getränk';
 type OrderInputType = 'string' | 'select' | 'boolean';
@@ -388,8 +389,9 @@ export class ItemEdit implements OnInit {
   }
 
   private async uploadSingleFile(file: File): Promise<boolean> {
+    const optimizedFile = await prepareImageForUpload(file);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', optimizedFile, optimizedFile.name);
 
     const res = await firstValueFrom(this.api.upload(`/api/items/${this.itemId}/image/`, this.auth.token(), formData));
     return !this.isApiError(res);

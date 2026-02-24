@@ -27,8 +27,9 @@
 
       <div class="product-grid" *ngIf="!loading() && visibleItems().length > 0">
         <div class="product-card" *ngFor="let item of visibleItems()">
-          <div class="image-wrap" *ngIf="item.image_data_url">
-            <img [src]="item.image_data_url" [alt]="item.name" />
+          <div class="image-wrap" *ngIf="primaryImage(item) as image">
+            <img [src]="image" [alt]="item.name" />
+            <div class="image-count-badge" *ngIf="extraImageCount(item) > 0">+{{ extraImageCount(item) }}</div>
           </div>
 
           <h3>{{ item.name }}</h3>

@@ -16,8 +16,8 @@ from pydantic import BaseModel, Field
 from db import get_db
 
 
-MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MiB
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_IMAGE_SIZE = 12 * 1024 * 1024  # 12 MiB
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"}
 EAN_RE = re.compile(r"^\d{8,14}$")
 
 router = APIRouter()
@@ -264,7 +264,7 @@ def _download_image_from_url(url: str) -> Tuple[bytes, str, str]:
         raise HTTPException(status_code=400, detail="Die Bild-URL ist leer")
 
     if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=413, detail="Bild ist zu groß (max. 5MB)")
+        raise HTTPException(status_code=413, detail="Bild ist zu groß (max. 12MB)")
 
     final_url = response.url or url
     content_type = _resolve_content_type(final_url, response.headers.get("content-type"))
@@ -753,7 +753,7 @@ async def upload_item_image(item_id: str, file: UploadFile = File(...)):
 
     content = await file.read()
     if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(413, "Bild ist zu groß (max. 5MB)")
+        raise HTTPException(413, "Bild ist zu groß (max. 12MB)")
 
     encoded = base64.b64encode(content).decode("utf-8")
     image_entry = _new_image_entry(file.filename or "image", file.content_type, encoded)

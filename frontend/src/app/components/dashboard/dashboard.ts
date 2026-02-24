@@ -9,9 +9,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
+import { prepareImageForUpload } from '../../shared/image-utils';
 
 type ItemType = 'essen' | 'getränk';
 
@@ -28,6 +30,7 @@ interface Item {
   updated_at: string;
   has_image: boolean;
   image_data_url?: string | null;
+  image_data_urls?: string[];
 }
 
 interface DashboardData {
@@ -99,7 +102,7 @@ export class Dashboard implements OnInit, OnDestroy {
   loading = signal(true);
   saving = signal(false);
   searchText = signal('');
-  selectedFile = signal<File | null>(null);
+  selectedFiles = signal<File[]>([]);
   editingId = signal<string | null>(null);
 
   scannerSupported = signal<boolean>(
@@ -207,13 +210,18 @@ export class Dashboard implements OnInit, OnDestroy {
 
   onFileSelected(event: Event): void {
     const target = event.target as HTMLInputElement;
-    const file = target.files && target.files.length > 0 ? target.files[0] : null;
-    this.selectedFile.set(file);
+    const files = target.files ? Array.from(target.files) : [];
+    if (files.length === 0) return;
+    this.selectedFiles.update((current) => [...current, ...files]);
+    target.value = '';
   }
 
-  clearFileSelection(input: HTMLInputElement): void {
-    this.selectedFile.set(null);
-    input.value = '';
+  removeSelectedFile(index: number): void {
+    this.selectedFiles.update((files) => {
+      const clone = [...files];
+      clone.splice(index, 1);
+      return clone;
+    });
   }
 
   setEanInput(value: string): void {
@@ -444,7 +452,7 @@ export class Dashboard implements OnInit, OnDestroy {
           this.finishSave(false, 'Item konnte nicht gespeichert werden.');
           return;
         }
-        this.afterSave(res.id);
+        void this.afterSave(res.id);
       });
       return;
     }
@@ -454,7 +462,7 @@ export class Dashboard implements OnInit, OnDestroy {
         this.finishSave(false, 'Item konnte nicht erstellt werden (evtl. EAN doppelt).');
         return;
       }
-      this.afterSave(res.id);
+      void this.afterSave(res.id);
     });
   }
 
@@ -474,7 +482,7 @@ export class Dashboard implements OnInit, OnDestroy {
       value: this.stringifyValue(value),
     }));
     this.attributeRows.set(rows.length > 0 ? rows : [{ key: '', value: '' }]);
-    this.selectedFile.set(null);
+    this.selectedFiles.set([]);
 
     this.eanInput.set(item.ean || '');
     this.eanLookupResult.set(null);
@@ -492,7 +500,7 @@ export class Dashboard implements OnInit, OnDestroy {
       ean: '',
     });
     this.attributeRows.set([{ key: '', value: '' }]);
-    this.selectedFile.set(null);
+    this.selectedFiles.set([]);
     this.eanInput.set('');
     this.eanLookupResult.set(null);
     this.metadataSource.set(null);
@@ -524,23 +532,41 @@ export class Dashboard implements OnInit, OnDestroy {
     });
   }
 
-  private afterSave(itemId: string): void {
-    const file = this.selectedFile();
-    if (!file) {
+  primaryImage(item: Item): string | null {
+    if (Array.isArray(item.image_data_urls) && item.image_data_urls.length > 0) {
+      return item.image_data_urls[0] || null;
+    }
+    return item.image_data_url || null;
+  }
+
+  extraImageCount(item: Item): number {
+    const count = Array.isArray(item.image_data_urls) ? item.image_data_urls.length : item.image_data_url ? 1 : 0;
+    return Math.max(0, count - 1);
+  }
+
+  private async afterSave(itemId: string): Promise<void> {
+    const files = this.selectedFiles();
+    if (files.length === 0) {
       this.finishSave(true, this.editingId() ? 'Item aktualisiert.' : 'Item erstellt.');
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-
-    this.api.upload(`/api/items/${itemId}/image/`, this.auth.token(), formData).subscribe((imgRes: any) => {
+    let failed = 0;
+    for (const file of files) {
+      const optimizedFile = await prepareImageForUpload(file);
+      const formData = new FormData();
+      formData.append('file', optimizedFile, optimizedFile.name);
+      const imgRes = await firstValueFrom(this.api.upload(`/api/items/${itemId}/image/`, this.auth.token(), formData));
       if (this.isApiError(imgRes)) {
-        this.finishSave(false, 'Item gespeichert, aber Bild-Upload fehlgeschlagen.');
-        return;
+        failed += 1;
       }
-      this.finishSave(true, 'Item inklusive Bild gespeichert.');
-    });
+    }
+
+    if (failed > 0) {
+      this.finishSave(false, 'Item gespeichert, aber Bild-Upload teilweise fehlgeschlagen.');
+      return;
+    }
+    this.finishSave(true, 'Item inklusive Bilder gespeichert.');
   }
 
   private finishSave(success: boolean, message: string): void {

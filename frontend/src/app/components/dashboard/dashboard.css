@@ -147,6 +147,18 @@ video {
   gap: 6px;
 }
 
+.file-list {
+  display: grid;
+  gap: 4px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .file-hint {
   color: #2f5f2f;
   font-size: 0.85rem;
@@ -183,6 +195,7 @@ video {
 }
 
 .image-wrap {
+  position: relative;
   width: 100%;
   height: 150px;
   margin-bottom: 8px;
@@ -195,6 +208,18 @@ video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.image-count-badge {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  background: rgba(0, 0, 0, 0.66);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .item-head {

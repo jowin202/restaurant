@@ -146,10 +146,16 @@
         </div>
 
         <div class="full-width upload-row">
-          <label for="itemImage">Bild hochladen (optional)</label>
-          <input id="itemImage" type="file" accept="image/*" #fileInput (change)="onFileSelected($event)" />
-          <div class="file-hint" *ngIf="selectedFile() as file">{{ file.name }}</div>
-          <button type="button" mat-button *ngIf="selectedFile()" (click)="clearFileSelection(fileInput)">Datei entfernen</button>
+          <label for="itemImage">Bilder hochladen (optional, mehrfach)</label>
+          <input id="itemImage" type="file" accept="image/*" multiple #fileInput (change)="onFileSelected($event)" />
+          <div class="file-list" *ngIf="selectedFiles().length > 0">
+            <div class="file-item" *ngFor="let file of selectedFiles(); let i = index">
+              <span class="file-hint">{{ file.name }}</span>
+              <button type="button" mat-icon-button color="warn" (click)="removeSelectedFile(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="actions">
@@ -176,8 +182,9 @@
 
       <div class="item-grid" *ngIf="!loading() && visibleItems().length > 0">
         <div class="item-card" *ngFor="let item of visibleItems()">
-          <div class="image-wrap" *ngIf="item.image_data_url">
-            <img [src]="item.image_data_url" [alt]="item.name" />
+          <div class="image-wrap" *ngIf="primaryImage(item) as image">
+            <img [src]="image" [alt]="item.name" />
+            <div class="image-count-badge" *ngIf="extraImageCount(item) > 0">+{{ extraImageCount(item) }}</div>
           </div>
 
           <div class="item-head">

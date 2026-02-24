@@ -24,6 +24,7 @@ interface Item {
   ean?: string | null;
   has_image: boolean;
   image_data_url?: string | null;
+  image_data_urls?: string[];
 }
 
 interface DashboardData {
@@ -134,6 +135,18 @@ export class ItemsList implements OnInit {
       this.snackBar.open('Bild entfernt.', 'OK', { duration: 2000 });
       this.reload();
     });
+  }
+
+  primaryImage(item: Item): string | null {
+    if (Array.isArray(item.image_data_urls) && item.image_data_urls.length > 0) {
+      return item.image_data_urls[0] || null;
+    }
+    return item.image_data_url || null;
+  }
+
+  extraImageCount(item: Item): number {
+    const count = Array.isArray(item.image_data_urls) ? item.image_data_urls.length : item.image_data_url ? 1 : 0;
+    return Math.max(0, count - 1);
   }
 
   private isApiError(response: any): boolean {
