@@ -54,7 +54,7 @@
         </div>
 
         <div class="meta">
-          <span>{{ item.in_stock ? 'Verfügbar' : 'Nicht verfügbar' }}</span>
+          <span>{{ (item.quantity ?? 0) > 0 ? 'Verfügbar' : 'Nicht verfügbar' }}</span>
           <span *ngIf="item.quantity !== null">{{ item.quantity }} {{ item.unit || '' }}</span>
         </div>
 
@@ -77,11 +77,28 @@
       </div>
     </div>
 
-    <div class="alert-box" *ngIf="dashboardData()?.alerts?.low_stock?.length">
-      <h3>Niedriger Bestand</h3>
-      <div class="alert-row" *ngFor="let low of dashboardData()?.alerts?.low_stock">
-        <span>{{ low.name }}</span>
-        <strong>{{ low.quantity }} {{ low.unit || '' }}</strong>
+    <div class="low-stock-panel" *ngIf="dashboardData()?.alerts?.low_stock?.length">
+      <div class="low-stock-header">
+        <div class="low-stock-title">
+          <mat-icon>warning_amber</mat-icon>
+          <h3>Niedriger Bestand</h3>
+        </div>
+        <span class="low-stock-count">{{ dashboardData()?.alerts?.low_stock?.length }}</span>
+      </div>
+
+      <div class="low-stock-list">
+        <div class="low-stock-row" *ngFor="let low of dashboardData()?.alerts?.low_stock">
+          <div class="low-stock-main">
+            <span class="low-stock-dot" [class.low-stock-dot-critical]="(low.quantity ?? 0) <= 0"></span>
+            <span class="low-stock-name">{{ low.name }}</span>
+          </div>
+          <div class="low-stock-meta">
+            <span class="low-stock-state" [class.low-stock-state-critical]="(low.quantity ?? 0) <= 0">
+              {{ (low.quantity ?? 0) <= 0 ? 'Leer' : 'Niedrig' }}
+            </span>
+            <strong>{{ low.quantity ?? 0 }} {{ low.unit || '' }}</strong>
+          </div>
+        </div>
       </div>
     </div>
   </mat-card>

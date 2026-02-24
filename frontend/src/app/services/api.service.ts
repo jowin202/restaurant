@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, map, Observable } from 'rxjs';
+import { catchError, map, Observable, of } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -33,7 +33,7 @@ export class ApiService {
           //if (error.status === 401) {
           //  return []
           //}
-          return [{ "error_code": error.status, "error_string": "Exception" }]
+          return of([{ "error_code": error.status, "error_string": "Exception" }])
         })
       );
   }
@@ -81,7 +81,7 @@ export class ApiService {
           //if (error.status === 401) {
           //  return []
           //}
-          return [{ "error_code": error.status, "error_string": "Exception" }]
+          return of([{ "error_code": error.status, "error_string": "Exception" }])
         })
       );
   }
@@ -108,7 +108,7 @@ export class ApiService {
           //if (error.status === 401) {
           //  return []
           //}
-          return [{ "error_code": error.status, "error_string": "Exception" }]
+          return of([{ "error_code": error.status, "error_string": "Exception" }])
         })
       );
   }
@@ -135,7 +135,7 @@ export class ApiService {
         return res;
       }),
       catchError((error: any) => {
-        return [{ "error_code": error.status, "error_string": "Download Exception" }];
+        return of([{ "error_code": error.status, "error_string": "Download Exception" }]);
       })
     );
   }
@@ -176,7 +176,7 @@ export class ApiService {
           //if (error.status === 401) {
           //  return []
           //}
-          return [{ "error_code": error.status, "error_string": "Exception" }]
+          return of([{ "error_code": error.status, "error_string": "Exception" }])
         })
       );
   }
@@ -204,7 +204,7 @@ export class ApiService {
           //if (error.status === 401) {
           //  return []
           //}
-          return [{ "error_code": error.status, "error_string": "Exception" }]
+          return of([{ "error_code": error.status, "error_string": "Exception" }])
         })
       );
   }

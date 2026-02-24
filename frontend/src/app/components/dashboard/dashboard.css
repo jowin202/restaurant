@@ -269,16 +269,116 @@ video {
   flex-wrap: wrap;
 }
 
-.alert-box {
-  margin-top: 14px;
-  border-top: 1px solid #eceff5;
-  padding-top: 12px;
+.low-stock-panel {
+  margin-top: 16px;
+  border: 1px solid #f0dcc0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffdf9 0%, #fff5e8 100%);
+  padding: 12px;
 }
 
-.alert-row {
+.low-stock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.low-stock-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.low-stock-title h3 {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #533722;
+}
+
+.low-stock-title mat-icon {
+  color: #b05f08;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.low-stock-count {
+  background: #f7e3ca;
+  color: #8b4c09;
+  border: 1px solid #e9c9a4;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.low-stock-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.low-stock-row {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #f2e5d4;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.low-stock-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.low-stock-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #c58a2f;
+  flex: 0 0 auto;
+}
+
+.low-stock-dot-critical {
+  background: #c0392b;
+}
+
+.low-stock-name {
+  color: #1f2937;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.low-stock-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #3f4752;
+  font-size: 0.85rem;
+}
+
+.low-stock-state {
+  background: #f3e6d6;
+  color: #8b4c09;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.low-stock-state-critical {
+  background: #fde4e1;
+  color: #a62619;
 }
 
 @media (max-width: 980px) {
@@ -303,5 +403,10 @@ video {
   .list-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .low-stock-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

@@ -44,7 +44,6 @@ interface Item {
     required: boolean;
     options: string[];
   }>;
-  in_stock: boolean;
   quantity: number | null;
   unit: string | null;
   ean?: string | null;
@@ -134,7 +133,6 @@ export class ItemCreate implements OnDestroy {
   form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     item_type: new FormControl<ItemType>('essen', { nonNullable: true }),
-    in_stock: new FormControl(true, { nonNullable: true }),
     quantity: new FormControl<number | null>(null),
     unit: new FormControl<string>(''),
     ean: new FormControl<string>(''),
@@ -685,7 +683,6 @@ export class ItemCreate implements OnDestroy {
     this.form.reset({
       name: '',
       item_type: 'essen',
-      in_stock: true,
       quantity: null,
       unit: '',
       ean: '',
@@ -775,7 +772,6 @@ export class ItemCreate implements OnDestroy {
       item_type: this.form.controls.item_type.value,
       attributes: attrs,
       order_attributes: orderAttributes,
-      in_stock: this.form.controls.in_stock.value,
       quantity: this.form.controls.quantity.value,
       unit: (this.form.controls.unit.value || '').trim() || null,
       ean: ean || null,

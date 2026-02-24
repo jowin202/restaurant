@@ -20,7 +20,6 @@ interface Item {
   name: string;
   item_type: ItemType;
   attributes: Record<string, any>;
-  in_stock: boolean;
   quantity: number | null;
   unit: string | null;
   ean?: string | null;

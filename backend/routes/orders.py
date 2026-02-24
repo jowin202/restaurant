@@ -207,7 +207,7 @@ async def checkout(data: CheckoutOrder, request: Request):
 
     db_items = await db.items.find(
         {'_id': {'$in': object_ids}},
-        {'name': 1, 'item_type': 1, 'ean': 1, 'in_stock': 1, 'unit': 1, 'quantity': 1, 'order_attributes': 1},
+        {'name': 1, 'item_type': 1, 'ean': 1, 'unit': 1, 'quantity': 1, 'order_attributes': 1},
     ).to_list(length=len(object_ids))
 
     if len(db_items) != len(object_ids):
@@ -226,28 +226,32 @@ async def checkout(data: CheckoutOrder, request: Request):
             raw_answers=answer_map.get(doc_id, {}),
         )
 
-        if doc.get('in_stock') is False:
+        available_quantity = doc.get('quantity')
+        if not _is_numeric(available_quantity):
+            raise HTTPException(
+                status_code=409,
+                detail=f"'{doc.get('name')}' hat keinen gültigen Lagerbestand.",
+            )
+
+        if float(available_quantity) <= 0:
             raise HTTPException(
                 status_code=409,
                 detail=f"'{doc.get('name')}' ist aktuell nicht verfügbar.",
             )
 
-        available_quantity = doc.get('quantity')
-        if _is_numeric(available_quantity):
-            remaining = round(float(available_quantity) - ordered_quantity, 3)
-            if remaining < 0:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Nicht genug Bestand für '{doc.get('name')}'. Verfügbar: {available_quantity}",
-                )
-
-            stock_updates.append(
-                {
-                    '_id': doc['_id'],
-                    'new_quantity': remaining,
-                    'in_stock': remaining > 0,
-                }
+        remaining = round(float(available_quantity) - ordered_quantity, 3)
+        if remaining < 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Nicht genug Bestand für '{doc.get('name')}'. Verfügbar: {available_quantity}",
             )
+
+        stock_updates.append(
+            {
+                '_id': doc['_id'],
+                'new_quantity': remaining,
+            }
+        )
 
         order_lines.append(
             {
@@ -258,7 +262,6 @@ async def checkout(data: CheckoutOrder, request: Request):
                 'ordered_quantity': ordered_quantity,
                 'unit': doc.get('unit'),
                 'available_quantity_before': available_quantity,
-                'in_stock_before': doc.get('in_stock', True),
                 'order_attributes': item_order_attributes,
                 'order_answers': validated_answers,
             }
@@ -269,7 +272,7 @@ async def checkout(data: CheckoutOrder, request: Request):
     for update in stock_updates:
         await db.items.update_one(
             {'_id': update['_id']},
-            {'$set': {'quantity': update['new_quantity'], 'in_stock': update['in_stock'], 'updated_at': now}},
+            {'$set': {'quantity': update['new_quantity'], 'updated_at': now}},
         )
 
     order_document = {

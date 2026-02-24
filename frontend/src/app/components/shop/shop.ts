@@ -22,7 +22,6 @@ interface Item {
   id: string;
   name: string;
   item_type: ItemType;
-  in_stock: boolean;
   quantity: number | null;
   unit: string | null;
   image_data_url?: string | null;
@@ -87,7 +86,7 @@ export class Shop implements OnInit {
 
   reload(): void {
     this.loading.set(true);
-    this.api.get('/api/items/?include_images=true&in_stock=true', this.auth.token()).subscribe((res: any) => {
+    this.api.get('/api/items/?include_images=true&available=true', this.auth.token()).subscribe((res: any) => {
       this.loading.set(false);
 
       if (this.isApiError(res)) {

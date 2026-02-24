@@ -44,7 +44,6 @@ interface Item {
     required: boolean;
     options: string[];
   }>;
-  in_stock: boolean;
   quantity: number | null;
   unit: string | null;
   ean?: string | null;
@@ -103,7 +102,6 @@ export class ItemEdit implements OnInit, OnDestroy {
   form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     item_type: new FormControl<ItemType>('essen', { nonNullable: true }),
-    in_stock: new FormControl(true, { nonNullable: true }),
     quantity: new FormControl<number | null>(null),
     unit: new FormControl<string>(''),
     ean: new FormControl<string>(''),
@@ -433,7 +431,6 @@ export class ItemEdit implements OnInit, OnDestroy {
       this.form.patchValue({
         name: item.name,
         item_type: item.item_type,
-        in_stock: item.in_stock,
         quantity: item.quantity,
         unit: item.unit || '',
         ean: item.ean || '',
@@ -529,7 +526,6 @@ export class ItemEdit implements OnInit, OnDestroy {
       item_type: this.form.controls.item_type.value,
       attributes: attrs,
       order_attributes: orderAttributes,
-      in_stock: this.form.controls.in_stock.value,
       quantity: this.form.controls.quantity.value,
       unit: (this.form.controls.unit.value || '').trim() || null,
       ean: ean || null,

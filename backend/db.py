@@ -66,7 +66,20 @@ async def pg_db_init() -> None:
     await db.users.create_index("token")
     await db.items.create_index("name")
     await db.items.create_index("item_type")
-    await db.items.create_index("ean", unique=True, sparse=True)
+    desired_ean_partial = {"ean": {"$type": "string"}}
+    async for idx in db.items.list_indexes():
+        key_doc = idx.get("key") or {}
+        if list(key_doc.items()) != [("ean", 1)]:
+            continue
+        if idx.get("unique") and idx.get("partialFilterExpression") == desired_ean_partial:
+            continue
+        await db.items.drop_index(idx["name"])
+
+    await db.items.create_index(
+        [("ean", 1)],
+        unique=True,
+        partialFilterExpression=desired_ean_partial,
+    )
     await db.orders.create_index("created_at")
     await db.orders.create_index("user_id")
 
@@ -79,6 +92,16 @@ async def pg_db_init() -> None:
                 }
             }
         ],
+    )
+
+    await db.items.update_many(
+        {"in_stock": {"$exists": True}},
+        {"$unset": {"in_stock": ""}},
+    )
+
+    await db.items.update_many(
+        {"$or": [{"quantity": {"$exists": False}}, {"quantity": None}]},
+        {"$set": {"quantity": 0}},
     )
 
     admin_user = await db.users.find_one({"username_normalized": normalize_username("admin")})

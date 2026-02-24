@@ -7,7 +7,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 
@@ -22,7 +21,6 @@ interface Item {
   name: string;
   item_type: ItemType;
   attributes: Record<string, any>;
-  in_stock: boolean;
   quantity: number | null;
   unit: string | null;
   ean?: string | null;
@@ -82,7 +80,6 @@ interface EanLookupResult {
     MatSelectModule,
     MatButtonModule,
     MatIconModule,
-    MatSlideToggleModule,
     MatSnackBarModule,
   ],
   templateUrl: './dashboard.html',
@@ -125,7 +122,6 @@ export class Dashboard implements OnInit, OnDestroy {
   form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     item_type: new FormControl<ItemType>('essen', { nonNullable: true }),
-    in_stock: new FormControl(true, { nonNullable: true }),
     quantity: new FormControl<number | null>(null),
     unit: new FormControl<string>(''),
     ean: new FormControl<string>(''),
@@ -471,7 +467,6 @@ export class Dashboard implements OnInit, OnDestroy {
     this.form.patchValue({
       name: item.name,
       item_type: item.item_type,
-      in_stock: item.in_stock,
       quantity: item.quantity,
       unit: item.unit ?? '',
       ean: item.ean ?? '',
@@ -494,7 +489,6 @@ export class Dashboard implements OnInit, OnDestroy {
     this.form.reset({
       name: '',
       item_type: 'essen',
-      in_stock: true,
       quantity: null,
       unit: '',
       ean: '',
@@ -594,7 +588,6 @@ export class Dashboard implements OnInit, OnDestroy {
       name: this.form.controls.name.value.trim(),
       item_type: this.form.controls.item_type.value,
       attributes: attrs,
-      in_stock: this.form.controls.in_stock.value,
       quantity: this.form.controls.quantity.value,
       unit: (this.form.controls.unit.value || '').trim() || null,
       ean: ean || null,

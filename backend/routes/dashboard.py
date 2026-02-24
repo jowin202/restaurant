@@ -23,7 +23,7 @@ async def get_dashboard_data():
 
         latest_items = await db.items.find(
             {},
-            {"_id": 1, "name": 1, "item_type": 1, "updated_at": 1, "quantity": 1, "unit": 1, "in_stock": 1},
+            {"_id": 1, "name": 1, "item_type": 1, "updated_at": 1, "quantity": 1, "unit": 1},
         ).sort("updated_at", -1).limit(10).to_list(length=10)
 
         low_stock_items = await db.items.find(
@@ -46,7 +46,6 @@ async def get_dashboard_data():
                     "updated_at": item.get("updated_at"),
                     "quantity": item.get("quantity"),
                     "unit": item.get("unit"),
-                    "in_stock": item.get("in_stock", True),
                 }
                 for item in latest_items
             ],

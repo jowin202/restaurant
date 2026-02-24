@@ -20,7 +20,6 @@ interface Item {
   quantity: number | null;
   unit: string | null;
   ean?: string | null;
-  in_stock: boolean;
 }
 
 interface EanLookupResult {

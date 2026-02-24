@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import requests
 from bson import ObjectId
 from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field
 
 from db import get_db
@@ -36,7 +37,6 @@ class ItemBase(BaseModel):
     item_type: Literal["essen", "getränk"] = "essen"
     attributes: Dict[str, Any] = Field(default_factory=dict)
     order_attributes: List[OrderAttributeDefinition] = Field(default_factory=list)
-    in_stock: bool = True
     quantity: Optional[float] = None
     unit: Optional[str] = None
     ean: Optional[str] = None
@@ -51,7 +51,6 @@ class ItemUpdate(BaseModel):
     item_type: Optional[Literal["essen", "getränk"]] = None
     attributes: Optional[Dict[str, Any]] = None
     order_attributes: Optional[List[OrderAttributeDefinition]] = None
-    in_stock: Optional[bool] = None
     quantity: Optional[float] = None
     unit: Optional[str] = None
     ean: Optional[str] = None
@@ -294,7 +293,6 @@ def _to_item_out(doc: Dict[str, Any], include_image_data: bool) -> Dict[str, Any
         "item_type": doc.get("item_type", "essen"),
         "attributes": doc.get("attributes", {}),
         "order_attributes": doc.get("order_attributes", []),
-        "in_stock": doc.get("in_stock", True),
         "quantity": doc.get("quantity"),
         "unit": doc.get("unit"),
         "ean": doc.get("ean"),
@@ -334,7 +332,6 @@ async def _apply_stock_delta(existing: Dict[str, Any], delta: float):
         {
             "$set": {
                 "quantity": new_quantity,
-                "in_stock": new_quantity > 0,
                 "updated_at": datetime.now(timezone.utc),
             }
         },
@@ -640,7 +637,7 @@ async def adjust_stock(data: StockAdjustRequest, request: Request):
 async def get_all_items(
     search: Optional[str] = Query(default=None),
     item_type: Optional[Literal["essen", "getränk"]] = Query(default=None),
-    in_stock: Optional[bool] = Query(default=None),
+    available: Optional[bool] = Query(default=None),
     include_images: bool = Query(default=True),
 ):
     db = await get_db()
@@ -650,8 +647,14 @@ async def get_all_items(
         mongo_query["name"] = {"$regex": search, "$options": "i"}
     if item_type:
         mongo_query["item_type"] = item_type
-    if in_stock is not None:
-        mongo_query["in_stock"] = in_stock
+    if available is True:
+        mongo_query["quantity"] = {"$type": "number", "$gt": 0}
+    elif available is False:
+        mongo_query["$or"] = [
+            {"quantity": {"$exists": False}},
+            {"quantity": None},
+            {"quantity": {"$lte": 0}},
+        ]
 
     docs = await db.items.find(mongo_query).sort("updated_at", -1).to_list(length=200)
     return [_to_item_out(doc, include_image_data=include_images) for doc in docs]
@@ -685,16 +688,22 @@ async def create_item(data: ItemCreate):
         "item_type": data.item_type,
         "attributes": _normalize_attributes(data.attributes),
         "order_attributes": _normalize_order_attributes(data.order_attributes),
-        "in_stock": data.in_stock,
-        "quantity": data.quantity,
+        "quantity": data.quantity if data.quantity is not None else 0,
         "unit": data.unit,
-        "ean": normalized_ean,
         "metadata_source": data.metadata_source,
         "created_at": now,
         "updated_at": now,
     }
+    if normalized_ean:
+        payload["ean"] = normalized_ean
 
-    result = await db.items.insert_one(payload)
+    try:
+        result = await db.items.insert_one(payload)
+    except DuplicateKeyError:
+        if normalized_ean:
+            raise HTTPException(status_code=409, detail="EAN bereits vorhanden")
+        raise HTTPException(status_code=500, detail="Datenbankindexfehler bei EAN (null). Bitte Migration/Neustart prüfen.")
+
     created = await db.items.find_one({"_id": result.inserted_id})
     return _to_item_out(created, include_image_data=True)
 
@@ -707,6 +716,7 @@ async def update_item(item_id: str, data: ItemUpdate):
     fields = data.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(400, "Keine Felder zum Aktualisieren übergeben")
+    unset_fields: Dict[str, str] = {}
 
     if "attributes" in fields and fields["attributes"] is not None:
         fields["attributes"] = _normalize_attributes(fields["attributes"])
@@ -716,15 +726,28 @@ async def update_item(item_id: str, data: ItemUpdate):
 
     if "ean" in fields:
         normalized_ean = _normalize_ean(fields["ean"])
-        fields["ean"] = normalized_ean
         if normalized_ean:
+            fields["ean"] = normalized_ean
             existing = await db.items.find_one({"ean": normalized_ean, "_id": {"$ne": oid}}, {"_id": 1})
             if existing:
                 raise HTTPException(status_code=409, detail="EAN bereits vorhanden")
+        else:
+            fields.pop("ean", None)
+            unset_fields["ean"] = ""
+
+    if "quantity" in fields and fields["quantity"] is None:
+        fields["quantity"] = 0
 
     fields["updated_at"] = datetime.now(timezone.utc)
 
-    result = await db.items.update_one({"_id": oid}, {"$set": fields})
+    update_doc: Dict[str, Any] = {"$set": fields}
+    if unset_fields:
+        update_doc["$unset"] = unset_fields
+
+    try:
+        result = await db.items.update_one({"_id": oid}, update_doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="EAN bereits vorhanden")
     if result.matched_count == 0:
         raise HTTPException(404, "Item nicht gefunden")
 
