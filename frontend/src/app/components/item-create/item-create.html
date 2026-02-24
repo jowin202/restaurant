@@ -181,12 +181,42 @@
 
       <div class="full-width upload-row">
         <label for="itemImage">Bilder hinzufügen (mehrfach möglich)</label>
-        <input id="itemImage" type="file" accept="image/*" multiple #fileInput (change)="onFileSelected($event)" />
-        <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file-input" (change)="onCameraCapture($event)" />
-        <button type="button" mat-stroked-button (click)="cameraInput.click()">
-          <mat-icon>photo_camera</mat-icon>
-          Direkt fotografieren
-        </button>
+        <div class="upload-actions">
+          <input
+            id="itemImage"
+            #fileInput
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden-file-input"
+            (change)="onFileSelected($event)"
+          />
+          <button type="button" mat-stroked-button color="primary" (click)="fileInput.click()">
+            <mat-icon>upload</mat-icon>
+            Dateien auswählen
+          </button>
+
+          <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file-input" (change)="onCameraCapture($event)" />
+          <button type="button" mat-stroked-button color="primary" (click)="openPhotoCamera(cameraInput)" [disabled]="photoCameraLoading()">
+            <mat-icon>photo_camera</mat-icon>
+            {{ photoCameraLoading() ? 'Kamera startet...' : 'Direkt fotografieren' }}
+          </button>
+
+          <button type="button" mat-stroked-button color="primary" (click)="addImageUrl()">
+            <mat-icon>link</mat-icon>
+            URL hinzufügen
+          </button>
+        </div>
+
+        <div class="camera-panel" *ngIf="photoCameraActive()">
+          <video #captureVideo autoplay playsinline muted></video>
+          <div class="camera-actions">
+            <button type="button" mat-flat-button color="primary" (click)="takePhotoFromCamera()">
+              Foto aufnehmen
+            </button>
+            <button type="button" mat-button (click)="stopPhotoCamera()">Abbrechen</button>
+          </div>
+        </div>
 
         <div class="file-list" *ngIf="selectedFiles().length > 0">
           <div class="file-item" *ngFor="let file of selectedFiles(); let i = index">
@@ -206,7 +236,6 @@
             placeholder="https://example.com/bild.jpg"
           />
         </mat-form-field>
-        <button type="button" mat-stroked-button (click)="addImageUrl()">URL hinzufügen</button>
 
         <div class="file-list" *ngIf="imageUrls().length > 0">
           <div class="file-item" *ngFor="let url of imageUrls(); let i = index">

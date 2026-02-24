@@ -106,25 +106,40 @@
   gap: 6px;
 }
 
+.upload-actions {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+}
+
+.upload-actions button {
+  justify-content: flex-start;
+}
+
+.camera-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #d9e2f2;
+  border-radius: 10px;
+  padding: 8px;
+  background: #f7fbff;
+}
+
+.camera-panel video {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 8px;
+  background: #0f1418;
+}
+
+.camera-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .hidden-file-input {
   display: none;
-}
-
-.file-list {
-  display: grid;
-  gap: 4px;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.file-hint {
-  color: #2f5f2f;
-  font-size: 0.85rem;
 }
 
 .actions {

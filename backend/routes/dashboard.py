@@ -12,7 +12,14 @@ async def get_dashboard_data():
         total_items = await db.items.count_documents({})
         total_food = await db.items.count_documents({"item_type": "essen"})
         total_drinks = await db.items.count_documents({"item_type": "getränk"})
-        total_with_images = await db.items.count_documents({"image": {"$exists": True}})
+        total_with_images = await db.items.count_documents(
+            {
+                "$or": [
+                    {"images.0": {"$exists": True}},
+                    {"image.data_base64": {"$exists": True}},
+                ]
+            }
+        )
 
         latest_items = await db.items.find(
             {},

@@ -145,34 +145,49 @@
         </div>
 
         <div class="upload-row">
-          <label for="itemImageEdit">Dateien hochladen (mehrfach)</label>
-          <input id="itemImageEdit" type="file" accept="image/*" multiple #fileInput (change)="onFileSelected($event)" />
+          <label>Dateien hochladen (mehrfach, Auto-Upload)</label>
+          <div class="upload-actions">
+            <input
+              #fileInput
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden-file-input"
+              (change)="onFileSelected($event)"
+            />
+            <button type="button" mat-stroked-button color="primary" (click)="fileInput.click()" [disabled]="imageBusy()">
+              <mat-icon>upload</mat-icon>
+              Dateien auswählen
+            </button>
 
-          <input
-            #cameraInput
-            type="file"
-            accept="image/*"
-            capture="environment"
-            class="hidden-file-input"
-            (change)="onCameraCapture($event)"
-          />
-          <button type="button" mat-stroked-button (click)="cameraInput.click()" [disabled]="imageBusy()">
-            <mat-icon>photo_camera</mat-icon>
-            Direkt fotografieren (Auto-Upload)
-          </button>
+            <input
+              #cameraInput
+              type="file"
+              accept="image/*"
+              capture="environment"
+              class="hidden-file-input"
+              (change)="onCameraCapture($event)"
+            />
+            <button type="button" mat-stroked-button color="primary" (click)="openCameraCapture(cameraInput)" [disabled]="imageBusy() || cameraLoading()">
+              <mat-icon>photo_camera</mat-icon>
+              {{ cameraLoading() ? 'Kamera startet...' : 'Direkt fotografieren' }}
+            </button>
 
-          <div class="file-list" *ngIf="selectedFiles().length > 0">
-            <div class="file-item" *ngFor="let file of selectedFiles(); let i = index">
-              <span class="file-hint">{{ file.name }}</span>
-              <button type="button" mat-icon-button color="warn" (click)="removeSelectedFile(i)">
-                <mat-icon>delete</mat-icon>
-              </button>
+            <button type="button" mat-stroked-button color="primary" [disabled]="imageBusy()" (click)="importImageFromUrl()">
+              <mat-icon>link</mat-icon>
+              URL hinzufügen
+            </button>
+
+            <div class="camera-panel" *ngIf="cameraActive()">
+              <video #captureVideo autoplay playsinline muted></video>
+              <div class="camera-actions">
+                <button type="button" mat-flat-button color="primary" [disabled]="imageBusy()" (click)="takeCameraPhoto()">
+                  Foto aufnehmen
+                </button>
+                <button type="button" mat-button [disabled]="imageBusy()" (click)="stopCamera()">Abbrechen</button>
+              </div>
             </div>
           </div>
-
-          <button type="button" mat-stroked-button color="primary" [disabled]="imageBusy() || selectedFiles().length === 0" (click)="uploadImages()">
-            Ausgewählte hochladen
-          </button>
         </div>
 
         <div class="upload-row">
@@ -185,9 +200,6 @@
               placeholder="https://example.com/bild.jpg"
             />
           </mat-form-field>
-          <button type="button" mat-stroked-button [disabled]="imageBusy()" (click)="importImageFromUrl()">
-            URL übernehmen
-          </button>
         </div>
 
         <button type="button" mat-button color="warn" *ngIf="currentImageDataUrls().length > 0" [disabled]="imageBusy()" (click)="removeImage()">

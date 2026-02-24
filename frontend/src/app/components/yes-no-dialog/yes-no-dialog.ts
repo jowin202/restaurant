@@ -12,6 +12,7 @@ export interface DialogData {
 
 @Component({
   selector: 'app-yes-no-dialog',
+  standalone: true,
   imports: [MatDialogModule, MatDialogContent, MatDialogActions,
     MatFormFieldModule,
     MatInputModule,

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -10,6 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
+import { YesNoDialog } from '../yes-no-dialog/yes-no-dialog';
 
 type ItemType = 'essen' | 'getränk';
 
@@ -50,6 +52,7 @@ interface DashboardData {
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
+    MatDialogModule,
     MatSnackBarModule,
   ],
   templateUrl: './items-list.html',
@@ -59,6 +62,7 @@ export class ItemsList implements OnInit {
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
 
   loading = signal(true);
   searchText = signal('');
@@ -112,28 +116,46 @@ export class ItemsList implements OnInit {
   }
 
   remove(item: Item): void {
-    if (!confirm(`Soll "${item.name}" wirklich gelöscht werden?`)) {
-      return;
-    }
+    this.dialog.open(YesNoDialog, {
+      width: 'min(92vw, 420px)',
+      maxWidth: '92vw',
+      data: {
+        head: 'Item löschen',
+        body: `Soll "${item.name}" wirklich gelöscht werden?`,
+      },
+    }).afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
 
-    this.api.delete(`/api/items/${item.id}/`, this.auth.token()).subscribe((res: any) => {
-      if (this.isApiError(res)) {
-        this.snackBar.open('Löschen fehlgeschlagen.', 'OK', { duration: 2500 });
-        return;
-      }
-      this.snackBar.open('Item gelöscht.', 'OK', { duration: 2000 });
-      this.reload();
+      this.api.delete(`/api/items/${item.id}/`, this.auth.token()).subscribe((res: any) => {
+        if (this.isApiError(res)) {
+          this.snackBar.open('Löschen fehlgeschlagen.', 'OK', { duration: 2500 });
+          return;
+        }
+        this.snackBar.open('Item gelöscht.', 'OK', { duration: 2000 });
+        this.reload();
+      });
     });
   }
 
   removeImage(item: Item): void {
-    this.api.delete(`/api/items/${item.id}/image/`, this.auth.token()).subscribe((res: any) => {
-      if (this.isApiError(res)) {
-        this.snackBar.open('Bild konnte nicht gelöscht werden.', 'OK', { duration: 2500 });
-        return;
-      }
-      this.snackBar.open('Bild entfernt.', 'OK', { duration: 2000 });
-      this.reload();
+    this.dialog.open(YesNoDialog, {
+      width: 'min(92vw, 420px)',
+      maxWidth: '92vw',
+      data: {
+        head: 'Bild entfernen',
+        body: `Soll das Bild von "${item.name}" wirklich entfernt werden?`,
+      },
+    }).afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
+
+      this.api.delete(`/api/items/${item.id}/image/`, this.auth.token()).subscribe((res: any) => {
+        if (this.isApiError(res)) {
+          this.snackBar.open('Bild konnte nicht gelöscht werden.', 'OK', { duration: 2500 });
+          return;
+        }
+        this.snackBar.open('Bild entfernt.', 'OK', { duration: 2000 });
+        this.reload();
+      });
     });
   }
 

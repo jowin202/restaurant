@@ -99,15 +99,19 @@ export class ItemCreate implements OnDestroy {
   private router = inject(Router);
 
   @ViewChild('eanVideo') eanVideo?: ElementRef<HTMLVideoElement>;
+  @ViewChild('captureVideo') captureVideo?: ElementRef<HTMLVideoElement>;
 
   private zxingNamespace: any = null;
   private zxingReader: any = null;
   private zxingControls: { stop: () => void } | null = null;
+  private photoStream: MediaStream | null = null;
 
   saving = signal(false);
   selectedFiles = signal<File[]>([]);
   imageUrlDraft = signal('');
   imageUrls = signal<string[]>([]);
+  photoCameraActive = signal(false);
+  photoCameraLoading = signal(false);
 
   scannerSupported = signal<boolean>(
     typeof window !== 'undefined' &&
@@ -137,6 +141,7 @@ export class ItemCreate implements OnDestroy {
   });
 
   ngOnDestroy(): void {
+    this.stopPhotoCamera();
     this.stopScanner();
   }
 
@@ -246,6 +251,91 @@ export class ItemCreate implements OnDestroy {
     this.selectedFiles.update((current) => [...current, ...files]);
     this.snackBar.open('Foto erfasst und zur Upload-Liste hinzugefügt.', 'OK', { duration: 1800 });
     target.value = '';
+  }
+
+  async openPhotoCamera(fallbackInput: HTMLInputElement): Promise<void> {
+    if (this.photoCameraActive()) {
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      fallbackInput.click();
+      return;
+    }
+
+    try {
+      this.photoCameraLoading.set(true);
+      this.photoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      this.photoCameraActive.set(true);
+
+      setTimeout(async () => {
+        const video = this.captureVideo?.nativeElement;
+        if (!video || !this.photoStream) return;
+
+        video.srcObject = this.photoStream;
+        try {
+          await video.play();
+        } catch {
+          // ignore autoplay errors
+        }
+      });
+    } catch {
+      this.stopPhotoCamera();
+      fallbackInput.click();
+      this.snackBar.open('Webcam konnte nicht gestartet werden. Datei-Dialog wird verwendet.', 'OK', { duration: 2800 });
+    } finally {
+      this.photoCameraLoading.set(false);
+    }
+  }
+
+  stopPhotoCamera(): void {
+    this.photoCameraActive.set(false);
+    this.photoCameraLoading.set(false);
+
+    if (this.photoStream) {
+      this.photoStream.getTracks().forEach((track) => track.stop());
+      this.photoStream = null;
+    }
+
+    const video = this.captureVideo?.nativeElement;
+    if (video) {
+      video.srcObject = null;
+    }
+  }
+
+  async takePhotoFromCamera(): Promise<void> {
+    const video = this.captureVideo?.nativeElement;
+    if (!video || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      this.snackBar.open('Kamerabild ist noch nicht bereit.', 'OK', { duration: 2000 });
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      this.snackBar.open('Fotoaufnahme fehlgeschlagen.', 'OK', { duration: 2200 });
+      return;
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob) {
+      this.snackBar.open('Foto konnte nicht erstellt werden.', 'OK', { duration: 2200 });
+      return;
+    }
+
+    const file = new File([blob], `camera-${Date.now()}.jpg`, {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+    this.selectedFiles.update((current) => [...current, file]);
+    this.stopPhotoCamera();
+    this.snackBar.open('Foto erfasst und zur Upload-Liste hinzugefügt.', 'OK', { duration: 1800 });
   }
 
   removeSelectedFile(index: number): void {

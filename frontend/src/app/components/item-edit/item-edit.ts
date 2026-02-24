@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -73,19 +73,24 @@ interface Item {
   templateUrl: './item-edit.html',
   styleUrls: ['./item-edit.css'],
 })
-export class ItemEdit implements OnInit {
+export class ItemEdit implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private snackBar = inject(MatSnackBar);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
+  @ViewChild('captureVideo') captureVideo?: ElementRef<HTMLVideoElement>;
+
+  private photoStream: MediaStream | null = null;
+
   itemId = '';
   loading = signal(true);
   saving = signal(false);
   imageBusy = signal(false);
+  cameraActive = signal(false);
+  cameraLoading = signal(false);
 
-  selectedFiles = signal<File[]>([]);
   imageUrlDraft = signal('');
   currentImageDataUrls = signal<string[]>([]);
   imageMetas = signal<Array<{ id: string; filename?: string; content_type?: string }>>([]);
@@ -113,6 +118,10 @@ export class ItemEdit implements OnInit {
 
     this.itemId = id;
     this.loadItem();
+  }
+
+  ngOnDestroy(): void {
+    this.stopCamera();
   }
 
   trackByIndex(index: number): number {
@@ -204,12 +213,26 @@ export class ItemEdit implements OnInit {
     });
   }
 
-  onFileSelected(event: Event): void {
+  async onFileSelected(event: Event): Promise<void> {
     const target = event.target as HTMLInputElement;
     const files = target.files ? Array.from(target.files) : [];
-    if (files.length === 0) return;
-    this.selectedFiles.update((current) => [...current, ...files]);
     target.value = '';
+    if (files.length === 0) return;
+
+    this.imageBusy.set(true);
+    let failed = 0;
+    for (const file of files) {
+      const ok = await this.uploadSingleFile(file);
+      if (!ok) failed += 1;
+    }
+    this.imageBusy.set(false);
+    this.loadItem();
+
+    if (failed === 0) {
+      this.snackBar.open('Bilder wurden direkt hochgeladen.', 'OK', { duration: 2200 });
+    } else {
+      this.snackBar.open('Einige Bilder konnten nicht hochgeladen werden (z. B. zu groß/ungültig).', 'OK', { duration: 3400 });
+    }
   }
 
   async onCameraCapture(event: Event): Promise<void> {
@@ -234,16 +257,100 @@ export class ItemEdit implements OnInit {
     }
   }
 
-  setImageUrl(value: string): void {
-    this.imageUrlDraft.set(value);
+  async openCameraCapture(fallbackInput: HTMLInputElement): Promise<void> {
+    if (this.cameraActive()) {
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      fallbackInput.click();
+      return;
+    }
+
+    try {
+      this.cameraLoading.set(true);
+      this.photoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      this.cameraActive.set(true);
+
+      setTimeout(async () => {
+        const video = this.captureVideo?.nativeElement;
+        if (!video || !this.photoStream) return;
+
+        video.srcObject = this.photoStream;
+        try {
+          await video.play();
+        } catch {
+          // ignore autoplay errors; user can still interact
+        }
+      });
+    } catch {
+      this.stopCamera();
+      fallbackInput.click();
+      this.snackBar.open('Webcam konnte nicht gestartet werden. Datei-Dialog wird verwendet.', 'OK', { duration: 2800 });
+    } finally {
+      this.cameraLoading.set(false);
+    }
   }
 
-  removeSelectedFile(index: number): void {
-    this.selectedFiles.update((files) => {
-      const clone = [...files];
-      clone.splice(index, 1);
-      return clone;
+  stopCamera(): void {
+    this.cameraActive.set(false);
+    this.cameraLoading.set(false);
+
+    if (this.photoStream) {
+      this.photoStream.getTracks().forEach((track) => track.stop());
+      this.photoStream = null;
+    }
+
+    const video = this.captureVideo?.nativeElement;
+    if (video) {
+      video.srcObject = null;
+    }
+  }
+
+  async takeCameraPhoto(): Promise<void> {
+    const video = this.captureVideo?.nativeElement;
+    if (!video || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      this.snackBar.open('Kamerabild ist noch nicht bereit.', 'OK', { duration: 2000 });
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      this.snackBar.open('Fotoaufnahme fehlgeschlagen.', 'OK', { duration: 2200 });
+      return;
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob) {
+      this.snackBar.open('Foto konnte nicht erstellt werden.', 'OK', { duration: 2200 });
+      return;
+    }
+
+    const file = new File([blob], `camera-${Date.now()}.jpg`, {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
     });
+
+    this.imageBusy.set(true);
+    const ok = await this.uploadSingleFile(file);
+    this.imageBusy.set(false);
+
+    this.stopCamera();
+    this.loadItem();
+    this.snackBar.open(ok ? 'Foto wurde direkt hochgeladen.' : 'Foto-Upload fehlgeschlagen.', 'OK', {
+      duration: ok ? 2200 : 2800,
+    });
+  }
+
+  setImageUrl(value: string): void {
+    this.imageUrlDraft.set(value);
   }
 
   saveItem(): void {
@@ -269,30 +376,6 @@ export class ItemEdit implements OnInit {
       this.snackBar.open('Änderungen gespeichert.', 'OK', { duration: 2200 });
       this.loadItem();
     });
-  }
-
-  async uploadImages(): Promise<void> {
-    const files = this.selectedFiles();
-    if (files.length === 0) {
-      this.snackBar.open('Bitte zuerst Dateien auswählen.', 'OK', { duration: 2200 });
-      return;
-    }
-
-    this.imageBusy.set(true);
-    let failed = 0;
-    for (const file of files) {
-      const ok = await this.uploadSingleFile(file);
-      if (!ok) failed += 1;
-    }
-    this.imageBusy.set(false);
-    this.selectedFiles.set([]);
-    this.loadItem();
-
-    if (failed === 0) {
-      this.snackBar.open('Bilder wurden hochgeladen.', 'OK', { duration: 2200 });
-    } else {
-      this.snackBar.open('Einige Bilder konnten nicht hochgeladen werden.', 'OK', { duration: 3000 });
-    }
   }
 
   importImageFromUrl(): void {
@@ -383,7 +466,6 @@ export class ItemEdit implements OnInit {
             : []
       );
       this.imageMetas.set(Array.isArray(item.images) ? item.images : []);
-      this.selectedFiles.set([]);
       this.imageUrlDraft.set('');
     });
   }
