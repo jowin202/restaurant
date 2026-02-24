@@ -32,8 +32,8 @@
             <input matInput type="number" [value]="scanDelta()" (input)="setScanDelta($any($event.target).value)" />
           </mat-form-field>
 
-          <button mat-flat-button color="warn" (click)="applyScannedAdjust('consume')">Verbraucht</button>
-          <button mat-flat-button color="primary" (click)="applyScannedAdjust('restock')">Nachgekauft</button>
+          <button mat-flat-button color="warn" (click)="applyScannedAdjust('consume')">-</button>
+          <button mat-flat-button color="primary" (click)="applyScannedAdjust('restock')">+</button>
         </div>
       </div>
     </mat-card>
@@ -76,8 +76,8 @@
               />
             </mat-form-field>
 
-            <button mat-stroked-button color="warn" (click)="rowAdjust(item, 'consume')">Verbraucht</button>
-            <button mat-stroked-button color="primary" (click)="rowAdjust(item, 'restock')">Nachgekauft</button>
+            <button mat-stroked-button color="warn" (click)="rowAdjust(item, 'consume')">-</button>
+            <button mat-stroked-button color="primary" (click)="rowAdjust(item, 'restock')">+</button>
           </div>
         </div>
       </div>

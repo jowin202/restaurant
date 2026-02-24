@@ -540,6 +540,21 @@ export class ItemCreate implements OnDestroy {
       }
 
       this.snackBar.open('Lagerbestand wurde erhöht.', 'OK', { duration: 2200 });
+
+      if (res?.item) {
+        const updatedLookup: EanLookupResult = {
+          ...lookup,
+          item: res.item as Item,
+          metadata_found: true,
+          metadata: {
+            source: 'local_db',
+            name: res.item.name,
+            item_type: res.item.item_type,
+            attributes: res.item.attributes || {},
+          },
+        };
+        this.eanLookupResult.set(updatedLookup);
+      }
     });
   }
 
