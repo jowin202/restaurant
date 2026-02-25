@@ -20,6 +20,7 @@ export interface User {
   name: string;
   mail: string;
   admin: number;
+  login_link?: string;
 }
 
 interface BulkCreatedUser {
@@ -203,20 +204,13 @@ export class UserTable {
       return;
     }
 
-    this.api.post(`/api/users/${user.id}/login-link/`, this.auth.token(), {}).subscribe((res: any) => {
-      if (this.isApiError(res)) {
-        this.snackBar.open('Login-Link konnte nicht erzeugt werden.', 'OK', { duration: 2500 });
-        return;
-      }
+    const loginLink = String(user?.login_link || '');
+    if (!loginLink) {
+      this.snackBar.open('Kein Login-Link vorhanden. Bitte Seite neu laden.', 'OK', { duration: 2500 });
+      return;
+    }
 
-      const loginLink = String(res?.login_link || '');
-      if (!loginLink) {
-        this.snackBar.open('Login-Link fehlt in der Antwort.', 'OK', { duration: 2500 });
-        return;
-      }
-
-      this.copyLink(loginLink);
-    });
+    this.copyLink(loginLink);
   }
 
   reprintWelcome(user: User): void {

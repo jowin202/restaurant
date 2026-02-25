@@ -36,6 +36,10 @@ class UserOut(UserBase):
     admin: int
 
 
+class UserListOut(UserOut):
+    login_link: Optional[str] = None
+
+
 class BulkImportUsersRequest(BaseModel):
     lines: str = Field(min_length=1, max_length=50000)
     base_url: Optional[str] = Field(default=None, max_length=500)
@@ -175,13 +179,21 @@ async def _ensure_user_magic_login_token(db: Any, user: Dict[str, Any]) -> str:
     return new_token
 
 
-@router.get("/", response_model=List[UserOut])
-async def get_all_users():
+@router.get("/", response_model=List[UserListOut])
+async def get_all_users(request: Request):
     db = await get_db()
     rows = await db.users.find(
         {},
-        {"_id": 0, "id": 1, "username": 1, "name": 1, "mail": 1, "admin": 1},
+        {"_id": 0, "id": 1, "username": 1, "name": 1, "mail": 1, "admin": 1, "magic_login_token": 1},
     ).sort("id", 1).to_list(length=None)
+
+    login_base_url = _build_login_base_url(request, None)
+    for row in rows:
+        if int(row.get("admin", 0)) == 0:
+            login_token = await _ensure_user_magic_login_token(db, row)
+            row["login_link"] = _build_magic_login_link(login_base_url, login_token)
+        row.pop("magic_login_token", None)
+
     return rows
 
 
