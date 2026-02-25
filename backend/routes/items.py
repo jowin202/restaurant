@@ -24,7 +24,7 @@ from routes.items_models import (
     StockIncreaseByEan,
 )
 from routes.items_normalize import (
-    normalize_attributes as _normalize_attributes,
+    normalize_description_html as _normalize_description_html,
     normalize_ean as _normalize_ean,
     normalize_order_attributes as _normalize_order_attributes,
     parse_item_id as _parse_item_id,
@@ -59,7 +59,6 @@ async def lookup_ean(ean: str):
                 "name": existing.get("name"),
                 "item_type": existing.get("item_type"),
                 "unit": existing.get("unit"),
-                "attributes": existing.get("attributes", {}),
                 "order_attributes": existing.get("order_attributes", []),
             },
             "providers_queried": ["local_db"],
@@ -189,7 +188,6 @@ async def create_item(data: ItemCreate):
     payload = {
         "name": data.name,
         "item_type": data.item_type,
-        "attributes": _normalize_attributes(data.attributes),
         "order_attributes": _normalize_order_attributes(data.order_attributes),
         "quantity": data.quantity if data.quantity is not None else 0,
         "unit": data.unit,
@@ -197,6 +195,10 @@ async def create_item(data: ItemCreate):
         "created_at": now,
         "updated_at": now,
     }
+    normalized_description = _normalize_description_html(data.description_html)
+    if normalized_description is not None:
+        payload["description_html"] = normalized_description
+
     if normalized_ean:
         payload["ean"] = normalized_ean
 
@@ -221,11 +223,16 @@ async def update_item(item_id: str, data: ItemUpdate):
         raise HTTPException(400, "Keine Felder zum Aktualisieren übergeben")
     unset_fields: Dict[str, str] = {}
 
-    if "attributes" in fields and fields["attributes"] is not None:
-        fields["attributes"] = _normalize_attributes(fields["attributes"])
-
     if "order_attributes" in fields and fields["order_attributes"] is not None:
         fields["order_attributes"] = _normalize_order_attributes(fields["order_attributes"])
+
+    if "description_html" in fields:
+        normalized_description = _normalize_description_html(fields.get("description_html"))
+        if normalized_description is None:
+            fields.pop("description_html", None)
+            unset_fields["description_html"] = ""
+        else:
+            fields["description_html"] = normalized_description
 
     if "ean" in fields:
         normalized_ean = _normalize_ean(fields["ean"])

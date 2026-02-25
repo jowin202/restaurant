@@ -20,7 +20,6 @@ interface Item {
   id: string;
   name: string;
   item_type: ItemType;
-  attributes: Record<string, any>;
   quantity: number | null;
   unit: string | null;
   ean?: string | null;
@@ -43,19 +42,10 @@ interface DashboardData {
   };
 }
 
-interface AttributeRow {
-  key: string;
-  value: string;
-}
-
 interface EanMetadata {
   source?: string;
   name?: string;
-  brand?: string;
   item_type?: ItemType;
-  quantity?: string | null;
-  category?: string;
-  attributes?: Record<string, any>;
 }
 
 interface EanLookupResult {
@@ -117,7 +107,6 @@ export class Dashboard implements OnInit, OnDestroy {
 
   dashboardData = signal<DashboardData | null>(null);
   items = signal<Item[]>([]);
-  attributeRows = signal<AttributeRow[]>([{ key: '', value: '' }]);
 
   form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -135,10 +124,7 @@ export class Dashboard implements OnInit, OnDestroy {
       const inName = item.name.toLowerCase().includes(search);
       const inType = item.item_type.toLowerCase().includes(search);
       const inEan = (item.ean || '').toLowerCase().includes(search);
-      const inAttrs = Object.entries(item.attributes || {}).some(
-        ([k, v]) => `${k} ${JSON.stringify(v)}`.toLowerCase().includes(search)
-      );
-      return inName || inType || inEan || inAttrs;
+      return inName || inType || inEan;
     });
   });
 
@@ -174,34 +160,6 @@ export class Dashboard implements OnInit, OnDestroy {
 
   onSearchChange(value: string): void {
     this.searchText.set(value);
-  }
-
-  addAttributeRow(): void {
-    this.attributeRows.update((rows) => [...rows, { key: '', value: '' }]);
-  }
-
-  removeAttributeRow(index: number): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone.splice(index, 1);
-      return clone.length > 0 ? clone : [{ key: '', value: '' }];
-    });
-  }
-
-  onAttributeKeyChange(index: number, value: string): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone[index] = { ...clone[index], key: value };
-      return clone;
-    });
-  }
-
-  onAttributeValueChange(index: number, value: string): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone[index] = { ...clone[index], value };
-      return clone;
-    });
   }
 
   onFileSelected(event: Event): void {
@@ -367,20 +325,6 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private prefillFromMetadata(ean: string, metadata: EanMetadata): void {
-    const mergedAttrs: Record<string, any> = { ...(metadata.attributes || {}) };
-
-    if (metadata.brand && !mergedAttrs['marke']) {
-      mergedAttrs['marke'] = metadata.brand;
-    }
-
-    if (metadata.category && !mergedAttrs['kategorie']) {
-      mergedAttrs['kategorie'] = metadata.category;
-    }
-
-    if (metadata.quantity && !mergedAttrs['verpackung']) {
-      mergedAttrs['verpackung'] = metadata.quantity;
-    }
-
     this.form.patchValue({
       name: metadata.name || this.form.controls.name.value,
       item_type: metadata.item_type || 'essen',
@@ -388,15 +332,6 @@ export class Dashboard implements OnInit, OnDestroy {
     });
 
     this.metadataSource.set(metadata.source || null);
-
-    const rows = Object.entries(mergedAttrs).map(([key, value]) => ({
-      key,
-      value: this.stringifyValue(value),
-    }));
-
-    if (rows.length > 0) {
-      this.attributeRows.set(rows);
-    }
   }
 
   increaseStockForKnownEan(): void {
@@ -424,7 +359,6 @@ export class Dashboard implements OnInit, OnDestroy {
             source: 'local_db',
             name: res.item.name,
             item_type: res.item.item_type,
-            attributes: res.item.attributes || {},
           },
         };
         this.eanLookupResult.set(updatedLookup);
@@ -472,11 +406,6 @@ export class Dashboard implements OnInit, OnDestroy {
       ean: item.ean ?? '',
     });
 
-    const rows = Object.entries(item.attributes || {}).map(([key, value]) => ({
-      key,
-      value: this.stringifyValue(value),
-    }));
-    this.attributeRows.set(rows.length > 0 ? rows : [{ key: '', value: '' }]);
     this.selectedFiles.set([]);
 
     this.eanInput.set(item.ean || '');
@@ -493,7 +422,6 @@ export class Dashboard implements OnInit, OnDestroy {
       unit: '',
       ean: '',
     });
-    this.attributeRows.set([{ key: '', value: '' }]);
     this.selectedFiles.set([]);
     this.eanInput.set('');
     this.eanLookupResult.set(null);
@@ -574,52 +502,16 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private buildPayload(): any {
-    const attrs: Record<string, any> = {};
-
-    for (const row of this.attributeRows()) {
-      const key = row.key.trim();
-      if (!key) continue;
-      attrs[key] = this.parseValue(row.value);
-    }
-
     const ean = (this.form.controls.ean.value || '').trim();
 
     return {
       name: this.form.controls.name.value.trim(),
       item_type: this.form.controls.item_type.value,
-      attributes: attrs,
       quantity: this.form.controls.quantity.value,
       unit: (this.form.controls.unit.value || '').trim() || null,
       ean: ean || null,
       metadata_source: this.metadataSource() || null,
     };
-  }
-
-  private parseValue(raw: string): any {
-    const value = (raw ?? '').trim();
-
-    if (!value.length) return '';
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-
-    if (/^-?\d+(\.\d+)?$/.test(value)) {
-      return Number(value);
-    }
-
-    if (value.startsWith('{') || value.startsWith('[') || value.startsWith('"')) {
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    }
-
-    return value;
-  }
-
-  private stringifyValue(value: any): string {
-    if (typeof value === 'string') return value;
-    return JSON.stringify(value);
   }
 
   private isApiError(response: any): boolean {

@@ -15,14 +15,10 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
 import { prepareImageForUpload } from '../../shared/image-utils';
+import { HtmlEditor } from '../html-editor/html-editor';
 
 type ItemType = 'essen' | 'getränk';
 type OrderInputType = 'string' | 'select' | 'boolean';
-
-interface AttributeRow {
-  key: string;
-  value: string;
-}
 
 interface OrderAttributeRow {
   key: string;
@@ -36,7 +32,7 @@ interface Item {
   id: string;
   name: string;
   item_type: ItemType;
-  attributes: Record<string, any>;
+  description_html?: string | null;
   order_attributes?: Array<{
     key: string;
     label: string;
@@ -68,6 +64,7 @@ interface Item {
     MatIconModule,
     MatSlideToggleModule,
     MatSnackBarModule,
+    HtmlEditor,
   ],
   templateUrl: './item-edit.html',
   styleUrls: ['./item-edit.css'],
@@ -94,7 +91,6 @@ export class ItemEdit implements OnInit, OnDestroy {
   currentImageDataUrls = signal<string[]>([]);
   imageMetas = signal<Array<{ id: string; filename?: string; content_type?: string }>>([]);
 
-  attributeRows = signal<AttributeRow[]>([{ key: '', value: '' }]);
   orderAttributeRows = signal<OrderAttributeRow[]>([
     { key: '', label: '', input_type: 'string', required: false, options_text: '' },
   ]);
@@ -102,6 +98,7 @@ export class ItemEdit implements OnInit, OnDestroy {
   form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     item_type: new FormControl<ItemType>('essen', { nonNullable: true }),
+    description_html: new FormControl<string>(''),
     quantity: new FormControl<number | null>(null),
     unit: new FormControl<string>(''),
     ean: new FormControl<string>(''),
@@ -124,34 +121,6 @@ export class ItemEdit implements OnInit, OnDestroy {
 
   trackByIndex(index: number): number {
     return index;
-  }
-
-  addAttributeRow(): void {
-    this.attributeRows.update((rows) => [...rows, { key: '', value: '' }]);
-  }
-
-  removeAttributeRow(index: number): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone.splice(index, 1);
-      return clone.length > 0 ? clone : [{ key: '', value: '' }];
-    });
-  }
-
-  onAttributeKeyChange(index: number, value: string): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone[index] = { ...clone[index], key: value };
-      return clone;
-    });
-  }
-
-  onAttributeValueChange(index: number, value: string): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone[index] = { ...clone[index], value };
-      return clone;
-    });
   }
 
   addOrderAttributeRow(): void {
@@ -431,16 +400,11 @@ export class ItemEdit implements OnInit, OnDestroy {
       this.form.patchValue({
         name: item.name,
         item_type: item.item_type,
+        description_html: item.description_html || '',
         quantity: item.quantity,
         unit: item.unit || '',
         ean: item.ean || '',
       });
-
-      const attrRows = Object.entries(item.attributes || {}).map(([key, value]) => ({
-        key,
-        value: this.stringifyValue(value),
-      }));
-      this.attributeRows.set(attrRows.length > 0 ? attrRows : [{ key: '', value: '' }]);
 
       const orderRows = (item.order_attributes || []).map((x) => ({
         key: x.key || '',
@@ -477,7 +441,6 @@ export class ItemEdit implements OnInit, OnDestroy {
   }
 
   private buildPayload(): any | null {
-    const attrs: Record<string, any> = {};
     const orderAttributes: Array<{
       key: string;
       label: string;
@@ -485,12 +448,6 @@ export class ItemEdit implements OnInit, OnDestroy {
       required: boolean;
       options: string[];
     }> = [];
-
-    for (const row of this.attributeRows()) {
-      const key = row.key.trim();
-      if (!key) continue;
-      attrs[key] = this.parseValue(row.value);
-    }
 
     for (const row of this.orderAttributeRows()) {
       const key = row.key.trim();
@@ -524,7 +481,7 @@ export class ItemEdit implements OnInit, OnDestroy {
     return {
       name: this.form.controls.name.value.trim(),
       item_type: this.form.controls.item_type.value,
-      attributes: attrs,
+      description_html: this.normalizeDescriptionHtml(this.form.controls.description_html.value),
       order_attributes: orderAttributes,
       quantity: this.form.controls.quantity.value,
       unit: (this.form.controls.unit.value || '').trim() || null,
@@ -532,31 +489,12 @@ export class ItemEdit implements OnInit, OnDestroy {
     };
   }
 
-  private parseValue(raw: string): any {
-    const value = (raw ?? '').trim();
+  private normalizeDescriptionHtml(value: string | null | undefined): string | null {
+    const html = (value || '').trim();
+    if (!html) return null;
 
-    if (!value.length) return '';
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-
-    if (/^-?\d+(\.\d+)?$/.test(value)) {
-      return Number(value);
-    }
-
-    if (value.startsWith('{') || value.startsWith('[') || value.startsWith('"')) {
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    }
-
-    return value;
-  }
-
-  private stringifyValue(value: any): string {
-    if (typeof value === 'string') return value;
-    return JSON.stringify(value);
+    const textOnly = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').trim();
+    return textOnly ? html : null;
   }
 
   private isApiError(response: any): boolean {

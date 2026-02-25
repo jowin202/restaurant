@@ -9,14 +9,24 @@ from pydantic import BaseModel
 EAN_RE = re.compile(r"^\d{8,14}$")
 
 
-def normalize_attributes(attributes: Dict[str, Any]) -> Dict[str, Any]:
-    normalized: Dict[str, Any] = {}
-    for key, value in attributes.items():
-        clean_key = str(key).strip()
-        if not clean_key:
-            continue
-        normalized[clean_key] = value
-    return normalized
+def normalize_description_html(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+
+    html = str(value).strip()
+    if not html:
+        return None
+
+    # Treat pure markup/nbsp placeholders as empty description.
+    text_content = re.sub(r"<[^>]+>", "", html)
+    text_content = text_content.replace("&nbsp;", " ").strip()
+    if not text_content:
+        return None
+
+    if len(html) > 40000:
+        raise HTTPException(status_code=400, detail="Beschreibung ist zu lang (max. 40000 Zeichen)")
+
+    return html
 
 
 def normalize_order_attributes(order_attributes: List[Any]) -> List[Dict[str, Any]]:

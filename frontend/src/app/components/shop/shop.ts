@@ -22,6 +22,7 @@ interface Item {
   id: string;
   name: string;
   item_type: ItemType;
+  description_html?: string | null;
   quantity: number | null;
   unit: string | null;
   image_data_url?: string | null;
@@ -76,7 +77,10 @@ export class Shop implements OnInit, OnDestroy {
     return this.items().filter((item) => {
       if (type !== 'all' && item.item_type !== type) return false;
       if (!search) return true;
-      return item.name.toLowerCase().includes(search);
+      return (
+        item.name.toLowerCase().includes(search) ||
+        this.stripHtml(item.description_html || '').toLowerCase().includes(search)
+      );
     });
   });
 
@@ -521,6 +525,10 @@ export class Shop implements OnInit, OnDestroy {
 
   private createCartLineId(): string {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private stripHtml(value: string): string {
+    return value.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
   }
 }
 

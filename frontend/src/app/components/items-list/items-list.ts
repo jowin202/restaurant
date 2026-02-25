@@ -19,7 +19,7 @@ interface Item {
   id: string;
   name: string;
   item_type: ItemType;
-  attributes: Record<string, any>;
+  description_html?: string | null;
   quantity: number | null;
   unit: string | null;
   ean?: string | null;
@@ -77,10 +77,8 @@ export class ItemsList implements OnInit {
       const inName = item.name.toLowerCase().includes(search);
       const inType = item.item_type.toLowerCase().includes(search);
       const inEan = (item.ean || '').toLowerCase().includes(search);
-      const inAttrs = Object.entries(item.attributes || {}).some(
-        ([k, v]) => `${k} ${JSON.stringify(v)}`.toLowerCase().includes(search)
-      );
-      return inName || inType || inEan || inAttrs;
+      const inDescription = this.stripHtml(item.description_html || '').toLowerCase().includes(search);
+      return inName || inType || inEan || inDescription;
     });
   });
 
@@ -168,6 +166,10 @@ export class ItemsList implements OnInit {
   extraImageCount(item: Item): number {
     const count = Array.isArray(item.image_data_urls) ? item.image_data_urls.length : item.image_data_url ? 1 : 0;
     return Math.max(0, count - 1);
+  }
+
+  private stripHtml(value: string): string {
+    return value.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
   }
 
   private isApiError(response: any): boolean {

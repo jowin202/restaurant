@@ -93,6 +93,23 @@
   font-size: 0.82rem;
 }
 
+.description-html {
+  font-size: 0.83rem;
+  color: #374151;
+  line-height: 1.35;
+  min-height: 48px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.description-html :first-child {
+  margin-top: 0;
+}
+
+.description-html :last-child {
+  margin-bottom: 0;
+}
+
 .loading {
   color: #666;
   padding: 12px 0;

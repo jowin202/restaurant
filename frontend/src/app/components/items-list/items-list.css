@@ -121,15 +121,23 @@
   font-size: 0.85rem;
 }
 
-.attrs {
+.description-html {
   margin-top: 8px;
-  display: grid;
-  gap: 4px;
+  font-size: 0.84rem;
+  color: #374151;
+  line-height: 1.4;
+  border-top: 1px solid #edf1f7;
+  padding-top: 8px;
+  max-height: 120px;
+  overflow: auto;
 }
 
-.attr {
-  font-size: 0.82rem;
-  color: #333;
+.description-html :first-child {
+  margin-top: 0;
+}
+
+.description-html :last-child {
+  margin-bottom: 0;
 }
 
 .item-actions {

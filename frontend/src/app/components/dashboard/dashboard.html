@@ -110,37 +110,6 @@
           <input matInput formControlName="ean" />
         </mat-form-field>
 
-        <div class="full-width">
-          <div class="attributes-header">
-            <h3>Attribute (Key + Value)</h3>
-            <button type="button" mat-stroked-button (click)="addAttributeRow()">
-              <mat-icon>add</mat-icon>
-              Attribut
-            </button>
-          </div>
-
-          <div class="attribute-row" *ngFor="let row of attributeRows(); let i = index">
-            <mat-form-field appearance="outline">
-              <mat-label>Key</mat-label>
-              <input matInput [value]="row.key" (input)="onAttributeKeyChange(i, $any($event.target).value)" />
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Value</mat-label>
-              <input
-                matInput
-                [value]="row.value"
-                (input)="onAttributeValueChange(i, $any($event.target).value)"
-                placeholder='Text, Zahl, true/false, JSON z. B. {"kcal":120}'
-              />
-            </mat-form-field>
-
-            <button type="button" mat-icon-button color="warn" (click)="removeAttributeRow(i)">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </div>
-        </div>
-
         <div class="full-width upload-row">
           <label for="itemImage">Bilder hochladen (optional, mehrfach)</label>
           <input id="itemImage" type="file" accept="image/*" multiple #fileInput (change)="onFileSelected($event)" />
@@ -168,7 +137,7 @@
         <h2>Kühlschrank-Items</h2>
         <mat-form-field appearance="outline">
           <mat-label>Suchen</mat-label>
-          <input matInput (input)="onSearchChange($any($event.target).value)" placeholder="Name, Typ, EAN, Attribut" />
+          <input matInput (input)="onSearchChange($any($event.target).value)" placeholder="Name, Typ, EAN" />
         </mat-form-field>
       </div>
 
@@ -195,13 +164,6 @@
 
           <div class="meta" *ngIf="item.ean">
             <span>EAN: {{ item.ean }}</span>
-          </div>
-
-          <div class="attrs" *ngIf="(item.attributes | keyvalue).length > 0">
-            <div class="attr" *ngFor="let entry of item.attributes | keyvalue">
-              <strong>{{ entry.key }}: </strong>
-              <span>{{ entry.value }}</span>
-            </div>
           </div>
 
           <div class="item-actions">

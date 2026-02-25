@@ -15,14 +15,10 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
 import { prepareImageForUpload } from '../../shared/image-utils';
+import { HtmlEditor } from '../html-editor/html-editor';
 
 type ItemType = 'essen' | 'getränk';
 type OrderInputType = 'string' | 'select' | 'boolean';
-
-interface AttributeRow {
-  key: string;
-  value: string;
-}
 
 interface OrderAttributeRow {
   key: string;
@@ -36,7 +32,7 @@ interface Item {
   id: string;
   name: string;
   item_type: ItemType;
-  attributes: Record<string, any>;
+  description_html?: string | null;
   order_attributes?: Array<{
     key: string;
     label: string;
@@ -57,7 +53,6 @@ interface EanMetadata {
   item_type?: ItemType;
   quantity?: string | null;
   category?: string;
-  attributes?: Record<string, any>;
 }
 
 interface EanLookupResult {
@@ -85,6 +80,7 @@ interface EanLookupResult {
     MatIconModule,
     MatSlideToggleModule,
     MatSnackBarModule,
+    HtmlEditor,
   ],
   templateUrl: './item-create.html',
   styleUrls: ['./item-create.css'],
@@ -125,7 +121,6 @@ export class ItemCreate implements OnDestroy {
   stockIncrease = signal(1);
   metadataSource = signal<string | null>(null);
 
-  attributeRows = signal<AttributeRow[]>([{ key: '', value: '' }]);
   orderAttributeRows = signal<OrderAttributeRow[]>([
     { key: '', label: '', input_type: 'string', required: false, options_text: '' },
   ]);
@@ -133,6 +128,7 @@ export class ItemCreate implements OnDestroy {
   form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     item_type: new FormControl<ItemType>('essen', { nonNullable: true }),
+    description_html: new FormControl<string>(''),
     quantity: new FormControl<number | null>(null),
     unit: new FormControl<string>(''),
     ean: new FormControl<string>(''),
@@ -145,34 +141,6 @@ export class ItemCreate implements OnDestroy {
 
   trackByIndex(index: number): number {
     return index;
-  }
-
-  addAttributeRow(): void {
-    this.attributeRows.update((rows) => [...rows, { key: '', value: '' }]);
-  }
-
-  removeAttributeRow(index: number): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone.splice(index, 1);
-      return clone.length > 0 ? clone : [{ key: '', value: '' }];
-    });
-  }
-
-  onAttributeKeyChange(index: number, value: string): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone[index] = { ...clone[index], key: value };
-      return clone;
-    });
-  }
-
-  onAttributeValueChange(index: number, value: string): void {
-    this.attributeRows.update((rows) => {
-      const clone = [...rows];
-      clone[index] = { ...clone[index], value };
-      return clone;
-    });
   }
 
   addOrderAttributeRow(): void {
@@ -582,20 +550,6 @@ export class ItemCreate implements OnDestroy {
   }
 
   private prefillFromMetadata(ean: string, metadata: EanMetadata): void {
-    const mergedAttrs: Record<string, any> = { ...(metadata.attributes || {}) };
-
-    if (metadata.brand && !mergedAttrs['marke']) {
-      mergedAttrs['marke'] = metadata.brand;
-    }
-
-    if (metadata.category && !mergedAttrs['kategorie']) {
-      mergedAttrs['kategorie'] = metadata.category;
-    }
-
-    if (metadata.quantity && !mergedAttrs['verpackung']) {
-      mergedAttrs['verpackung'] = metadata.quantity;
-    }
-
     this.form.patchValue({
       name: metadata.name || this.form.controls.name.value,
       item_type: metadata.item_type || 'essen',
@@ -603,15 +557,6 @@ export class ItemCreate implements OnDestroy {
     });
 
     this.metadataSource.set(metadata.source || null);
-
-    const rows = Object.entries(mergedAttrs).map(([key, value]) => ({
-      key,
-      value: this.stringifyValue(value),
-    }));
-
-    if (rows.length > 0) {
-      this.attributeRows.set(rows);
-    }
   }
 
   increaseStockForKnownEan(): void {
@@ -638,7 +583,6 @@ export class ItemCreate implements OnDestroy {
             source: 'local_db',
             name: res.item.name,
             item_type: res.item.item_type,
-            attributes: res.item.attributes || {},
           },
         };
         this.eanLookupResult.set(updatedLookup);
@@ -683,11 +627,11 @@ export class ItemCreate implements OnDestroy {
     this.form.reset({
       name: '',
       item_type: 'essen',
+      description_html: '',
       quantity: null,
       unit: '',
       ean: '',
     });
-    this.attributeRows.set([{ key: '', value: '' }]);
     this.orderAttributeRows.set([{ key: '', label: '', input_type: 'string', required: false, options_text: '' }]);
     this.selectedFiles.set([]);
     this.imageUrlDraft.set('');
@@ -723,7 +667,6 @@ export class ItemCreate implements OnDestroy {
   }
 
   private buildPayload(): any | null {
-    const attrs: Record<string, any> = {};
     const orderAttributes: Array<{
       key: string;
       label: string;
@@ -731,12 +674,6 @@ export class ItemCreate implements OnDestroy {
       required: boolean;
       options: string[];
     }> = [];
-
-    for (const row of this.attributeRows()) {
-      const key = row.key.trim();
-      if (!key) continue;
-      attrs[key] = this.parseValue(row.value);
-    }
 
     for (const row of this.orderAttributeRows()) {
       const key = row.key.trim();
@@ -770,7 +707,7 @@ export class ItemCreate implements OnDestroy {
     return {
       name: this.form.controls.name.value.trim(),
       item_type: this.form.controls.item_type.value,
-      attributes: attrs,
+      description_html: this.normalizeDescriptionHtml(this.form.controls.description_html.value),
       order_attributes: orderAttributes,
       quantity: this.form.controls.quantity.value,
       unit: (this.form.controls.unit.value || '').trim() || null,
@@ -779,31 +716,12 @@ export class ItemCreate implements OnDestroy {
     };
   }
 
-  private parseValue(raw: string): any {
-    const value = (raw ?? '').trim();
+  private normalizeDescriptionHtml(value: string | null | undefined): string | null {
+    const html = (value || '').trim();
+    if (!html) return null;
 
-    if (!value.length) return '';
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-
-    if (/^-?\d+(\.\d+)?$/.test(value)) {
-      return Number(value);
-    }
-
-    if (value.startsWith('{') || value.startsWith('[') || value.startsWith('"')) {
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    }
-
-    return value;
-  }
-
-  private stringifyValue(value: any): string {
-    if (typeof value === 'string') return value;
-    return JSON.stringify(value);
+    const textOnly = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').trim();
+    return textOnly ? html : null;
   }
 
   private isApiError(response: any): boolean {

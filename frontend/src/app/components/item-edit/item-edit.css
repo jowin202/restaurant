@@ -35,18 +35,17 @@
   grid-column: 1 / -1;
 }
 
+.editor-label {
+  font-size: 0.86rem;
+  color: #4c5a72;
+  margin-bottom: 6px;
+}
+
 .attributes-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-}
-
-.attribute-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr auto;
-  gap: 8px;
-  align-items: center;
 }
 
 .order-attribute-row {

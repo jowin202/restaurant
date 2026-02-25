@@ -58,14 +58,6 @@ async def provider_openfoodfacts(ean: str) -> Optional[Dict[str, Any]]:
     if not name:
         return None
 
-    attributes: Dict[str, Any] = {}
-    if brand:
-        attributes["marke"] = brand
-    if categories:
-        attributes["kategorie"] = categories
-    if product.get("nutriscore_grade"):
-        attributes["nutriscore"] = product.get("nutriscore_grade")
-
     return {
         "source": "openfoodfacts",
         "name": name,
@@ -74,7 +66,6 @@ async def provider_openfoodfacts(ean: str) -> Optional[Dict[str, Any]]:
         "category": categories,
         "image_url": image_url,
         "item_type": infer_item_type(name, categories),
-        "attributes": attributes,
     }
 
 
@@ -104,12 +95,6 @@ async def provider_upcitemdb(ean: str) -> Optional[Dict[str, Any]]:
     if not title:
         return None
 
-    attributes: Dict[str, Any] = {}
-    if brand:
-        attributes["marke"] = brand
-    if category:
-        attributes["kategorie"] = category
-
     return {
         "source": "upcitemdb",
         "name": title,
@@ -118,7 +103,6 @@ async def provider_upcitemdb(ean: str) -> Optional[Dict[str, Any]]:
         "category": category,
         "image_url": (item.get("images") or [None])[0],
         "item_type": infer_item_type(title, category),
-        "attributes": attributes,
     }
 
 
@@ -148,12 +132,6 @@ async def provider_barcodelookup(ean: str) -> Optional[Dict[str, Any]]:
     if not title:
         return None
 
-    attributes: Dict[str, Any] = {}
-    if brand:
-        attributes["marke"] = brand
-    if category:
-        attributes["kategorie"] = category
-
     return {
         "source": "barcodelookup",
         "name": title,
@@ -162,7 +140,6 @@ async def provider_barcodelookup(ean: str) -> Optional[Dict[str, Any]]:
         "category": category,
         "image_url": product.get("images", [None])[0] if product.get("images") else None,
         "item_type": infer_item_type(title, category),
-        "attributes": attributes,
     }
 
 

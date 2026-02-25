@@ -127,20 +127,6 @@ video {
   grid-column: 1 / -1;
 }
 
-.attributes-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.attribute-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr auto;
-  gap: 8px;
-  align-items: center;
-}
-
 .upload-row {
   display: flex;
   flex-direction: column;
@@ -249,17 +235,6 @@ video {
   margin-top: 6px;
   color: #495057;
   font-size: 0.85rem;
-}
-
-.attrs {
-  margin-top: 8px;
-  display: grid;
-  gap: 4px;
-}
-
-.attr {
-  font-size: 0.82rem;
-  color: #333;
 }
 
 .item-actions {

@@ -40,34 +40,12 @@
       </mat-form-field>
 
       <div class="full-width">
-        <div class="attributes-header">
-          <h3>Attribute (Key + Value)</h3>
-          <button type="button" mat-stroked-button (click)="addAttributeRow()">
-            <mat-icon>add</mat-icon>
-            Attribut
-          </button>
-        </div>
-
-        <div class="attribute-row" *ngFor="let row of attributeRows(); let i = index; trackBy: trackByIndex">
-          <mat-form-field appearance="outline">
-            <mat-label>Key</mat-label>
-            <input matInput [value]="row.key" (input)="onAttributeKeyChange(i, $any($event.target).value)" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Value</mat-label>
-            <input
-              matInput
-              [value]="row.value"
-              (input)="onAttributeValueChange(i, $any($event.target).value)"
-              placeholder='Text, Zahl, true/false, JSON z. B. {"kcal":120}'
-            />
-          </mat-form-field>
-
-          <button type="button" mat-icon-button color="warn" (click)="removeAttributeRow(i)">
-            <mat-icon>delete</mat-icon>
-          </button>
-        </div>
+        <div class="editor-label">HTML Beschreibung</div>
+        <app-html-editor
+          formControlName="description_html"
+          [minHeight]="'180px'"
+          [placeholder]="'z. B. Zutaten, Allergene, Hinweise...'"
+        ></app-html-editor>
       </div>
 
       <div class="full-width">

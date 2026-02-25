@@ -62,12 +62,7 @@
           <span>EAN: {{ item.ean }}</span>
         </div>
 
-        <div class="attrs" *ngIf="(item.attributes | keyvalue).length > 0">
-          <div class="attr" *ngFor="let entry of item.attributes | keyvalue">
-            <strong>{{ entry.key }}:</strong>
-            <span>{{ entry.value }}</span>
-          </div>
-        </div>
+        <div class="description-html" *ngIf="item.description_html" [innerHTML]="item.description_html"></div>
 
         <div class="item-actions">
           <a mat-button color="primary" [routerLink]="['/items', item.id, 'edit']">Bearbeiten</a>

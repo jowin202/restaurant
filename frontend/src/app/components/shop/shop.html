@@ -33,6 +33,7 @@
           </div>
 
           <h3>{{ item.name }}</h3>
+          <div class="description-html" *ngIf="item.description_html" [innerHTML]="item.description_html"></div>
           <div class="meta" *ngIf="item.quantity !== null">Verfügbar: {{ item.quantity }} {{ item.unit || '' }}</div>
 
           <button mat-flat-button color="primary" (click)="addToCart(item)" [disabled]="!canAddToCart(item)">

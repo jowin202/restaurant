@@ -15,7 +15,7 @@ class OrderAttributeDefinition(BaseModel):
 class ItemBase(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     item_type: Literal["essen", "getränk"] = "essen"
-    attributes: Dict[str, Any] = Field(default_factory=dict)
+    description_html: Optional[str] = Field(default=None, max_length=40000)
     order_attributes: List[OrderAttributeDefinition] = Field(default_factory=list)
     quantity: Optional[float] = None
     unit: Optional[str] = None
@@ -29,7 +29,7 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=120)
     item_type: Optional[Literal["essen", "getränk"]] = None
-    attributes: Optional[Dict[str, Any]] = None
+    description_html: Optional[str] = Field(default=None, max_length=40000)
     order_attributes: Optional[List[OrderAttributeDefinition]] = None
     quantity: Optional[float] = None
     unit: Optional[str] = None
