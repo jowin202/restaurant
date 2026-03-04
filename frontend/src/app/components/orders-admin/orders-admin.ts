@@ -19,6 +19,8 @@ interface AdminOrder {
   user_id?: string | null;
   user_name?: string | null;
   status: string;
+  print_status?: string;
+  print_error?: string;
   comment?: string | null;
   created_at: string;
   item_count: number;
@@ -74,10 +76,12 @@ export class OrdersAdmin implements OnInit {
   preparePrint(order: AdminOrder): void {
     this.api.post(`/api/orders/${order.id}/prepare-print/`, this.auth.token(), {}).subscribe((res: any) => {
       if (this.isApiError(res)) {
-        this.snackBar.open('Druckvorbereitung fehlgeschlagen.', 'OK', { duration: 2500 });
+        this.snackBar.open('Druck fehlgeschlagen.', 'OK', { duration: 2500 });
         return;
       }
-      this.snackBar.open('Druckvorbereitung ist angelegt.', 'OK', { duration: 2200 });
+      const message = String(res?.message || 'Druckauftrag verarbeitet.');
+      this.snackBar.open(message, 'OK', { duration: 2600 });
+      this.reload();
     });
   }
 

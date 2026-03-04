@@ -292,7 +292,9 @@ export class Shop implements OnInit, OnDestroy {
 
       this.cart.set([]);
       this.orderComment.set('');
-      this.snackBar.open('Bestellung wurde ausgelöst.', 'OK', { duration: 2500 });
+      const printMessage = String(res?.print?.message || '').trim();
+      const message = printMessage ? `Bestellung wurde ausgelöst. ${printMessage}` : 'Bestellung wurde ausgelöst.';
+      this.snackBar.open(message, 'OK', { duration: 3200 });
     });
   }
 

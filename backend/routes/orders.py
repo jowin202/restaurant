@@ -1,3 +1,5 @@
+import asyncio
+import socket
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -6,8 +8,14 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from db import get_db
+from settingsmgr import SettingsManager
 
 router = APIRouter()
+settings_manager = SettingsManager()
+
+RECEIPT_LINE_WIDTH = 42
+RECEIPT_PORT = 9100
+RECEIPT_TIMEOUT_SECONDS = 2.5
 
 
 class OrderItem(BaseModel):
@@ -19,6 +27,183 @@ class OrderItem(BaseModel):
 class CheckoutOrder(BaseModel):
     items: List[OrderItem]
     comment: Optional[str] = None
+
+
+def _format_quantity(value: Any) -> str:
+    if not _is_numeric(value):
+        return str(value or "")
+    return f"{float(value):g}"
+
+
+def _stringify_print_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "Ja" if value else "Nein"
+    if value is None:
+        return "-"
+    if isinstance(value, (dict, list)):
+        return str(value)
+    return str(value)
+
+
+def _wrap_receipt_text(text: str, width: int = RECEIPT_LINE_WIDTH) -> List[str]:
+    words = str(text or "").split()
+    if not words:
+        return [""]
+
+    lines: List[str] = []
+    current = words[0]
+    for word in words[1:]:
+        test = f"{current} {word}"
+        if len(test) <= width:
+            current = test
+        else:
+            lines.append(current)
+            current = word
+    lines.append(current)
+    return lines
+
+
+def _build_escpos_order_payload(order_document: Dict[str, Any], order_id: str, mode: str) -> bytes:
+    created_at = order_document.get("created_at")
+    if isinstance(created_at, datetime):
+        created_text = created_at.astimezone().strftime("%d.%m.%Y %H:%M")
+    else:
+        created_text = datetime.now().astimezone().strftime("%d.%m.%Y %H:%M")
+
+    user_name = str(order_document.get("user_name") or "Unbekannt")
+    comment = str(order_document.get("comment") or "").strip()
+    items = order_document.get("items")
+    safe_items = items if isinstance(items, list) else []
+
+    body_lines: List[str] = []
+    body_lines.append(f"Bestellung #{order_id[-8:]}")
+    body_lines.append(f"Zeit: {created_text}")
+    body_lines.append(f"Von: {user_name}")
+    body_lines.append("-" * RECEIPT_LINE_WIDTH)
+
+    for idx, line in enumerate(safe_items, start=1):
+        if not isinstance(line, dict):
+            continue
+        name = str(line.get("name") or "Artikel")
+        qty = _format_quantity(line.get("ordered_quantity"))
+        unit = str(line.get("unit") or "").strip()
+
+        for name_line in _wrap_receipt_text(f"{idx}. {name}"):
+            body_lines.append(name_line)
+        qty_line = f"   Menge: {qty} {unit}".strip()
+        body_lines.append(qty_line)
+
+        raw_answers = line.get("order_answers")
+        answers = raw_answers if isinstance(raw_answers, dict) else {}
+        for key in sorted(answers.keys()):
+            label = str(key)
+            value = _stringify_print_value(answers.get(key))
+            for answer_line in _wrap_receipt_text(f"   - {label}: {value}"):
+                body_lines.append(answer_line)
+        body_lines.append("")
+
+    if comment:
+        body_lines.append("Kommentar:")
+        for c_line in _wrap_receipt_text(comment):
+            body_lines.append(c_line)
+        body_lines.append("")
+
+    body_lines.append("-" * RECEIPT_LINE_WIDTH)
+    body_lines.append(f"Druckmodus: {'Automatisch' if mode == 'auto' else 'Manuell'}")
+
+    body_text = "\n".join(body_lines).strip() + "\n"
+    encoded_body = body_text.encode("cp1252", errors="replace")
+
+    return b"".join(
+        [
+            b"\x1b\x40",       # init
+            b"\x1b\x61\x01",   # center
+            b"\x1b\x45\x01",   # bold on
+            "Restaurant Bestellung\n".encode("cp1252", errors="replace"),
+            b"\x1b\x45\x00",   # bold off
+            b"\x1b\x61\x00",   # left
+            encoded_body,
+            b"\n\n\n",
+            b"\x1d\x56\x41\x00",  # cut
+        ]
+    )
+
+
+def _send_escpos_raw(ip_address: str, payload: bytes, timeout_seconds: float = RECEIPT_TIMEOUT_SECONDS) -> None:
+    with socket.create_connection((ip_address, RECEIPT_PORT), timeout=timeout_seconds) as sock:
+        sock.sendall(payload)
+
+
+async def _try_print_escpos(ip_address: str, payload: bytes) -> Optional[str]:
+    try:
+        await asyncio.to_thread(_send_escpos_raw, ip_address, payload)
+        return None
+    except Exception as exc:
+        return str(exc)
+
+
+def _get_receipt_printer_ip() -> str:
+    return str(settings_manager.get_setting("receipt_printer_ip") or "").strip()
+
+
+def _print_status_message(status: str, mode: str) -> str:
+    if status == "printed":
+        return "Bestellung wurde gedruckt." if mode == "manual" else "Bestellung wurde automatisch gedruckt."
+    if status == "printer_not_configured":
+        return "Bondrucker ist nicht konfiguriert (receipt_printer_ip)."
+    if status == "printer_offline":
+        return "Bondruck fehlgeschlagen (Drucker nicht erreichbar)."
+    return "Druckstatus unbekannt."
+
+
+async def _attempt_order_print(
+    db: Any,
+    order_oid: ObjectId,
+    order_id: str,
+    order_document: Dict[str, Any],
+    mode: str,
+) -> Dict[str, Any]:
+    printer_ip = _get_receipt_printer_ip()
+    now = datetime.now(timezone.utc)
+
+    status = "printer_not_configured"
+    error = ""
+    if printer_ip:
+        payload = _build_escpos_order_payload(order_document, order_id=order_id, mode=mode)
+        print_error = await _try_print_escpos(printer_ip, payload)
+        if print_error:
+            status = "printer_offline"
+            error = print_error
+        else:
+            status = "printed"
+
+    event = {
+        "at": now,
+        "mode": mode,
+        "status": status,
+        "printer_ip": printer_ip or None,
+        "error": error or None,
+    }
+    await db.orders.update_one(
+        {"_id": order_oid},
+        {
+            "$set": {
+                "print_status": status,
+                "print_error": error or None,
+                "print_last_mode": mode,
+                "print_last_attempt_at": now,
+            },
+            "$push": {"print_events": event},
+        },
+    )
+
+    return {
+        "status": status,
+        "mode": mode,
+        "printer_ip": printer_ip or None,
+        "error": error or None,
+        "message": _print_status_message(status, mode),
+    }
 
 
 async def trigger_order_backend(order_document: Dict[str, Any]) -> Dict[str, Any]:
@@ -291,16 +476,27 @@ async def checkout(data: CheckoutOrder, request: Request):
         'items': order_lines,
         'comment': data.comment,
         'status': 'pending_integration',
+        'print_status': 'pending',
         'created_at': now,
     }
 
     insert_result = await db.orders.insert_one(order_document)
     trigger_result = await trigger_order_backend(order_document)
+    order_oid = insert_result.inserted_id
+    order_id = str(order_oid)
+    print_result = await _attempt_order_print(
+        db=db,
+        order_oid=order_oid,
+        order_id=order_id,
+        order_document=order_document,
+        mode='auto',
+    )
 
     return {
         'status': 'accepted',
-        'order_id': str(insert_result.inserted_id),
+        'order_id': order_id,
         'trigger': trigger_result,
+        'print': print_result,
         'stock_updated_items': len(stock_updates),
     }
 
@@ -332,6 +528,8 @@ def _serialize_order_for_admin(doc: Dict[str, Any]) -> Dict[str, Any]:
         'user_id': doc.get('user_id'),
         'user_name': doc.get('user_name'),
         'status': str(doc.get('status') or 'pending_integration'),
+        'print_status': str(doc.get('print_status') or ''),
+        'print_error': str(doc.get('print_error') or ''),
         'comment': str(doc.get('comment') or ''),
         'created_at': created_at_iso,
         'item_count': len(items),
@@ -348,7 +546,16 @@ async def list_orders(request: Request, limit: int = Query(default=40, ge=1, le=
     db = await get_db()
     docs = await db.orders.find(
         {},
-        {'user_id': 1, 'user_name': 1, 'status': 1, 'comment': 1, 'created_at': 1, 'items': 1},
+        {
+            'user_id': 1,
+            'user_name': 1,
+            'status': 1,
+            'print_status': 1,
+            'print_error': 1,
+            'comment': 1,
+            'created_at': 1,
+            'items': 1,
+        },
     ).sort('created_at', -1).limit(limit).to_list(length=limit)
 
     return [_serialize_order_for_admin(doc) for doc in docs]
@@ -384,13 +591,26 @@ async def prepare_print(order_id: str, request: Request):
         raise HTTPException(status_code=400, detail='Ungültige Bestell-ID')
 
     db = await get_db()
-    order = await db.orders.find_one({'_id': ObjectId(order_id)}, {'_id': 1})
+    order_oid = ObjectId(order_id)
+    order = await db.orders.find_one(
+        {'_id': order_oid},
+        {'_id': 1, 'user_name': 1, 'comment': 1, 'created_at': 1, 'items': 1},
+    )
     if not order:
         raise HTTPException(status_code=404, detail='Bestellung nicht gefunden')
 
+    print_result = await _attempt_order_print(
+        db=db,
+        order_oid=order_oid,
+        order_id=order_id,
+        order_document=order,
+        mode='manual',
+    )
+
     return {
-        'status': 'not_implemented',
+        'status': print_result['status'],
         'order_id': order_id,
         'action': 'prepare_print',
-        'message': 'Druckvorbereitung ist angelegt (noch nicht implementiert).',
+        'print': print_result,
+        'message': print_result['message'],
     }
