@@ -109,7 +109,6 @@ def _build_escpos_order_payload(order_document: Dict[str, Any], order_id: str, m
         body_lines.append("")
 
     body_lines.append("-" * RECEIPT_LINE_WIDTH)
-    body_lines.append(f"Druckmodus: {'Automatisch' if mode == 'auto' else 'Manuell'}")
 
     body_text = "\n".join(body_lines).strip() + "\n"
     encoded_body = body_text.encode("cp1252", errors="replace")
@@ -119,7 +118,7 @@ def _build_escpos_order_payload(order_document: Dict[str, Any], order_id: str, m
             b"\x1b\x40",       # init
             b"\x1b\x61\x01",   # center
             b"\x1b\x45\x01",   # bold on
-            "Restaurant Bestellung\n".encode("cp1252", errors="replace"),
+            "Bestellung\n".encode("cp1252", errors="replace"),
             b"\x1b\x45\x00",   # bold off
             b"\x1b\x61\x00",   # left
             encoded_body,

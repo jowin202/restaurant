@@ -93,18 +93,57 @@ def _build_magic_login_link(base_url: str, token: str) -> str:
     return f"{base_url}/login?magic={encoded}"
 
 
-def _build_escpos_welcome_payload(message: str) -> bytes:
+def _build_escpos_qr_block(content: str, module_size: int = 6, ec_level: int = 49) -> bytes:
+    raw = (content or "").strip().encode("utf-8", errors="ignore")
+    if not raw:
+        return b""
+
+    # ESC/POS QR max payload ist geräteabhängig, TM-T88V kann deutlich > 1KB.
+    # Für Stabilität schneiden wir 
+    if len(raw) > 700:
+        raw = raw[:700]
+
+    # GS ( k: QR model 2
+    set_model = b"\x1d\x28\x6b\x04\x00\x31\x41\x32\x00"
+    # Modulgröße (1..16)
+    size = max(1, min(16, int(module_size)))
+    set_size = bytes([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, size])
+    # Fehlerkorrektur L/M/Q/H = 48/49/50/51
+    level = ec_level if ec_level in {48, 49, 50, 51} else 49
+    set_ec = bytes([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, level])
+
+    store_len = len(raw) + 3
+    p_l = store_len & 0xFF
+    p_h = (store_len >> 8) & 0xFF
+    store = bytes([0x1D, 0x28, 0x6B, p_l, p_h, 0x31, 0x50, 0x30]) + raw
+
+    # Print symbol
+    print_cmd = b"\x1d\x28\x6b\x03\x00\x31\x51\x30"
+    return set_model + set_size + set_ec + store + print_cmd
+
+
+def _build_escpos_welcome_payload(message: str, login_link: Optional[str] = None) -> bytes:
     text = (message or "").strip()
     if not text:
         text = "Willkommen!"
 
     encoded = text.encode("cp1252", errors="replace")
+    link = (login_link or "").strip()
+
+    qr_block = b""
+    qr_text = b""
+    if link:
+        qr_text = f"\n\nLogin-Link:\n{link}\n\nQR-Code:\n".encode("cp1252", errors="replace")
+        qr_block = _build_escpos_qr_block(link)
+
     return b"".join(
         [
             b"\x1b\x40",       # init
             b"\x1b\x61\x01",   # center
             encoded,
             b"\n\n",
+            qr_text,
+            qr_block,
             b"\x1b\x61\x00",   # left
             b"\n\n\n",
             b"\x1d\x56\x41\x00",  # full cut
@@ -117,8 +156,8 @@ def _send_escpos_raw(ip_address: str, payload: bytes, timeout_seconds: float = 2
         sock.sendall(payload)
 
 
-async def _try_print_welcome(ip_address: str, message: str) -> Optional[str]:
-    payload = _build_escpos_welcome_payload(message)
+async def _try_print_welcome(ip_address: str, message: str, login_link: Optional[str] = None) -> Optional[str]:
+    payload = _build_escpos_welcome_payload(message, login_link=login_link)
     try:
         await asyncio.to_thread(_send_escpos_raw, ip_address, payload)
         return None
@@ -306,7 +345,7 @@ async def bulk_import_users(data: BulkImportUsersRequest, request: Request):
     ).strip()
     welcome_template = str(
         settings_manager.get_setting("guest_qr_invite_text")
-        or "Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen."
+        or ""
     )
 
     results: List[Dict[str, Any]] = []
@@ -352,7 +391,7 @@ async def bulk_import_users(data: BulkImportUsersRequest, request: Request):
                 username=created_doc["username"],
                 link=login_link,
             )
-            error = await _try_print_welcome(printer_ip, message)
+            error = await _try_print_welcome(printer_ip, message, login_link=login_link)
             if error:
                 print_status = "printer_offline"
                 print_error = error
@@ -425,7 +464,7 @@ async def reprint_welcome(user_id: int, request: Request):
 
     welcome_template = str(
         settings_manager.get_setting("guest_qr_invite_text")
-        or "Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen."
+        or ""
     )
     welcome_text = _resolve_welcome_text(
         template=welcome_template,
@@ -433,7 +472,7 @@ async def reprint_welcome(user_id: int, request: Request):
         username=str(target.get("username") or ""),
         link=login_link,
     )
-    error = await _try_print_welcome(printer_ip, welcome_text)
+    error = await _try_print_welcome(printer_ip, welcome_text, login_link=login_link)
     if error:
         return {
             "status": "printer_offline",
