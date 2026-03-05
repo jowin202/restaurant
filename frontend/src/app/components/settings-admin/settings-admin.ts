@@ -116,8 +116,8 @@ export class SettingsAdmin implements OnInit {
     const payload = {
       receipt_printer_ip: this.form.controls.receipt_printer_ip.value.trim(),
       label_printer_ip: this.form.controls.label_printer_ip.value.trim(),
-      label_printer_width_mm: this.form.controls.label_printer_width_mm.value.trim(),
-      label_printer_height_mm: this.form.controls.label_printer_height_mm.value.trim(),
+      label_printer_width_mm: String(this.form.controls.label_printer_width_mm.value ?? '').trim(),
+      label_printer_height_mm: String(this.form.controls.label_printer_height_mm.value ?? '').trim(),
       label_printer_dpi: Number(this.form.controls.label_printer_dpi.value),
       guest_qr_invite_text: this.form.controls.guest_qr_invite_text.value.trim(),
     };

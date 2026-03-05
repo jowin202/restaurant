@@ -340,7 +340,6 @@ async def bulk_import_users(data: BulkImportUsersRequest, request: Request):
     login_base_url = _build_login_base_url(request, data.base_url)
     printer_ip = str(
         settings_manager.get_setting("receipt_printer_ip")
-        or settings_manager.get_setting("label_printer_ip")
         or ""
     ).strip()
     welcome_template = str(
@@ -451,7 +450,6 @@ async def reprint_welcome(user_id: int, request: Request):
 
     printer_ip = str(
         settings_manager.get_setting("receipt_printer_ip")
-        or settings_manager.get_setting("label_printer_ip")
         or ""
     ).strip()
     if not printer_ip:
