@@ -1,5 +1,5 @@
 import { Component, Inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -12,10 +12,15 @@ import { MatNativeDateModule } from '@angular/material/core';
 @Component({
   standalone: true,
   imports: [
-    CommonModule, FormsModule, MatDialogModule, MatFormFieldModule,
-    MatInputModule, MatButtonModule, MatSelectModule,
-    MatDatepickerModule, MatNativeDateModule
-  ],
+    FormsModule,
+    MatDialogModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatSelectModule,
+    MatDatepickerModule,
+    MatNativeDateModule
+],
   template: `
     <h2 mat-dialog-title>{{ data.label }} bearbeiten</h2>
     <mat-dialog-content>

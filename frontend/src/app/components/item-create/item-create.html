@@ -14,12 +14,14 @@
       <div class="ean-row">
         <mat-form-field appearance="outline" class="grow">
           <mat-label>EAN Code</mat-label>
-          <input matInput [value]="eanInput()" (input)="setEanInput($any($event.target).value)" placeholder="z. B. 761303..." />
+          <input matInput [value]="eanInput()" (input)="setEanInput($any($event.target).value)"
+            placeholder="z. B. 761303..." />
         </mat-form-field>
 
         <button mat-stroked-button color="primary" (click)="lookupEan()">EAN suchen</button>
 
-        <button mat-stroked-button type="button" (click)="toggleScanner()" [disabled]="!scannerSupported() || scannerLoading()">
+        <button mat-stroked-button type="button" (click)="toggleScanner()"
+          [disabled]="!scannerSupported() || scannerLoading()">
           <mat-icon>{{ scannerActive() ? 'stop' : 'camera_alt' }}</mat-icon>
           {{ scannerActive() ? 'Scanner stoppen' : (scannerLoading() ? 'Scanner lädt...' : 'Webcam Scanner') }}
         </button>
@@ -27,41 +29,48 @@
 
       <video #eanVideo autoplay playsinline muted [class.hidden-video]="!scannerActive()"></video>
 
-      <div class="ean-status" *ngIf="scannerLoading()">ZXing Scanner wird geladen...</div>
-      <div class="ean-status" *ngIf="eanLookupLoading()">Suche läuft...</div>
-      <div class="ean-status" *ngIf="!scannerSupported()">
+      @if (scannerLoading()) {
+      <div class="ean-status">ZXing Scanner wird geladen...</div>
+      }
+      @if (eanLookupLoading()) {
+      <div class="ean-status">Suche läuft...</div>
+      }
+      @if (!scannerSupported()) {
+      <div class="ean-status">
         Kamerazugriff im Browser nicht verfügbar. Bitte EAN manuell eingeben.
       </div>
+      }
 
-      <div class="ean-result" *ngIf="eanLookupResult() as lookup">
+      @if (eanLookupResult(); as lookup) {
+      <div class="ean-result">
         @if (lookup.known && lookup.item) {
         <div class="known-box">
           <strong>Bekannter EAN:</strong> {{ lookup.item.name }}
           <div class="small-muted">Aktueller Bestand: {{ lookup.item.quantity ?? 0 }} {{ lookup.item.unit || '' }}</div>
-
           <div class="known-actions">
             <mat-form-field appearance="outline" class="small-number">
               <mat-label>Menge erhöhen</mat-label>
-              <input matInput type="number" [value]="stockIncrease()" (input)="setStockIncrease($any($event.target).value)" />
+              <input matInput type="number" [value]="stockIncrease()"
+                (input)="setStockIncrease($any($event.target).value)" />
             </mat-form-field>
-
             <button mat-flat-button color="primary" (click)="increaseStockForKnownEan()">Lagerbestand erhöhen</button>
           </div>
         </div>
         } @else {
-          @if (lookup.metadata_found) {
-          <div class="known-box">
-            <strong>Unbekannter EAN, Metadaten gefunden.</strong>
-            <div class="small-muted">Formular wurde vorausgefüllt. Bitte prüfen und speichern.</div>
-          </div>
-          } @else {
-          <div class="known-box warn">
-            <strong>Kein API-Treffer.</strong>
-            <div class="small-muted">Bitte Produktdaten manuell eintragen.</div>
-          </div>
-          }
+        @if (lookup.metadata_found) {
+        <div class="known-box">
+          <strong>Unbekannter EAN, Metadaten gefunden.</strong>
+          <div class="small-muted">Formular wurde vorausgefüllt. Bitte prüfen und speichern.</div>
+        </div>
+        } @else {
+        <div class="known-box warn">
+          <strong>Kein API-Treffer.</strong>
+          <div class="small-muted">Bitte Produktdaten manuell eintragen.</div>
+        </div>
+        }
         }
       </div>
+      }
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-grid">
@@ -95,11 +104,8 @@
 
       <div class="full-width">
         <div class="editor-label">HTML Beschreibung</div>
-        <app-html-editor
-          formControlName="description_html"
-          [minHeight]="'180px'"
-          [placeholder]="'z. B. Zutaten, Allergene, Hinweise...'"
-        ></app-html-editor>
+        <app-html-editor formControlName="description_html" [minHeight]="'180px'"
+          [placeholder]="'z. B. Zutaten, Allergene, Hinweise...'"></app-html-editor>
       </div>
 
       <div class="full-width">
@@ -111,17 +117,16 @@
           </button>
         </div>
 
-        <div class="order-attribute-row" *ngFor="let row of orderAttributeRows(); let i = index; trackBy: trackByIndex">
+        @for (row of orderAttributeRows(); track $index; let i = $index) {
+        <div class="order-attribute-row">
           <mat-form-field appearance="outline">
             <mat-label>Key</mat-label>
             <input matInput [value]="row.key" (input)="onOrderAttributeKeyChange(i, $any($event.target).value)" />
           </mat-form-field>
-
           <mat-form-field appearance="outline">
             <mat-label>Label im Dialog</mat-label>
             <input matInput [value]="row.label" (input)="onOrderAttributeLabelChange(i, $any($event.target).value)" />
           </mat-form-field>
-
           <mat-form-field appearance="outline">
             <mat-label>Typ</mat-label>
             <mat-select [value]="row.input_type" (selectionChange)="onOrderAttributeTypeChange(i, $event.value)">
@@ -130,48 +135,40 @@
               <mat-option value="boolean">Checkbox</mat-option>
             </mat-select>
           </mat-form-field>
-
-          <mat-form-field appearance="outline" *ngIf="row.input_type === 'select'">
+          @if (row.input_type === 'select') {
+          <mat-form-field appearance="outline">
             <mat-label>Auswahlwerte</mat-label>
-            <input
-              matInput
-              [value]="row.options_text"
+            <input matInput [value]="row.options_text"
               (input)="onOrderAttributeOptionsChange(i, $any($event.target).value)"
-              placeholder="z. B. klein,mittel,groß"
-            />
+              placeholder="z. B. klein,mittel,groß" />
           </mat-form-field>
-
+          }
           <div class="required-toggle">
             <mat-slide-toggle [checked]="row.required" (change)="onOrderAttributeRequiredChange(i, $event.checked)">
               Pflichtfeld
             </mat-slide-toggle>
           </div>
-
           <button type="button" mat-icon-button color="warn" (click)="removeOrderAttributeRow(i)">
             <mat-icon>delete</mat-icon>
           </button>
         </div>
+        }
       </div>
 
       <div class="full-width upload-row">
         <label for="itemImage">Bilder hinzufügen (mehrfach möglich)</label>
         <div class="upload-actions">
-          <input
-            id="itemImage"
-            #fileInput
-            type="file"
-            accept="image/*"
-            multiple
-            class="hidden-file-input"
-            (change)="onFileSelected($event)"
-          />
+          <input id="itemImage" #fileInput type="file" accept="image/*" multiple class="hidden-file-input"
+            (change)="onFileSelected($event)" />
           <button type="button" mat-stroked-button color="primary" (click)="fileInput.click()">
             <mat-icon>upload</mat-icon>
             Dateien auswählen
           </button>
 
-          <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file-input" (change)="onCameraCapture($event)" />
-          <button type="button" mat-stroked-button color="primary" (click)="openPhotoCamera(cameraInput)" [disabled]="photoCameraLoading()">
+          <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file-input"
+            (change)="onCameraCapture($event)" />
+          <button type="button" mat-stroked-button color="primary" (click)="openPhotoCamera(cameraInput)"
+            [disabled]="photoCameraLoading()">
             <mat-icon>photo_camera</mat-icon>
             {{ photoCameraLoading() ? 'Kamera startet...' : 'Direkt fotografieren' }}
           </button>
@@ -182,7 +179,8 @@
           </button>
         </div>
 
-        <div class="camera-panel" *ngIf="photoCameraActive()">
+        @if (photoCameraActive()) {
+        <div class="camera-panel">
           <video #captureVideo autoplay playsinline muted></video>
           <div class="camera-actions">
             <button type="button" mat-flat-button color="primary" (click)="takePhotoFromCamera()">
@@ -191,34 +189,39 @@
             <button type="button" mat-button (click)="stopPhotoCamera()">Abbrechen</button>
           </div>
         </div>
+        }
 
-        <div class="file-list" *ngIf="selectedFiles().length > 0">
-          <div class="file-item" *ngFor="let file of selectedFiles(); let i = index">
+        @if (selectedFiles().length > 0) {
+        <div class="file-list">
+          @for (file of selectedFiles(); track file; let i = $index) {
+          <div class="file-item">
             <span class="file-hint">{{ file.name }}</span>
             <button type="button" mat-icon-button color="warn" (click)="removeSelectedFile(i)">
               <mat-icon>delete</mat-icon>
             </button>
           </div>
+          }
         </div>
+        }
 
         <mat-form-field appearance="outline">
           <mat-label>Bild-URL hinzufügen</mat-label>
-          <input
-            matInput
-            [value]="imageUrlDraft()"
-            (input)="setImageUrl($any($event.target).value)"
-            placeholder="https://example.com/bild.jpg"
-          />
+          <input matInput [value]="imageUrlDraft()" (input)="setImageUrl($any($event.target).value)"
+            placeholder="https://example.com/bild.jpg" />
         </mat-form-field>
 
-        <div class="file-list" *ngIf="imageUrls().length > 0">
-          <div class="file-item" *ngFor="let url of imageUrls(); let i = index">
+        @if (imageUrls().length > 0) {
+        <div class="file-list">
+          @for (url of imageUrls(); track url; let i = $index) {
+          <div class="file-item">
             <span class="file-hint">{{ url }}</span>
             <button type="button" mat-icon-button color="warn" (click)="removeImageUrl(i)">
               <mat-icon>delete</mat-icon>
             </button>
           </div>
+          }
         </div>
+        }
       </div>
 
       <div class="actions">

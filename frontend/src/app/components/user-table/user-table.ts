@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { ChangeDetectorRef, Component } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
@@ -44,15 +44,14 @@ interface BulkImportResponse {
 @Component({
   selector: 'app-user-table',
   imports: [
-    CommonModule,
     MatTableModule,
     MatIconModule,
     MatChipsModule,
     MatButtonModule,
     MatTooltipModule,
     MatFormFieldModule,
-    MatInputModule,
-  ],
+    MatInputModule
+],
   templateUrl: './user-table.html',
   styleUrl: './user-table.css',
 })

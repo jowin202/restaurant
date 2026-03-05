@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,6 +6,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSelectModule } from '@angular/material/select';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
@@ -13,6 +14,9 @@ import { AuthService } from '../../services/auth.services';
 const SETTINGS_KEYS = [
   'receipt_printer_ip',
   'label_printer_ip',
+  'label_printer_width_mm',
+  'label_printer_height_mm',
+  'label_printer_dpi',
   'guest_qr_invite_text',
 ] as const;
 
@@ -22,14 +26,14 @@ const DEFAULT_INVITE_TEXT = 'Lieber [Name], Bitte scanne den QR Code ab um zu un
   selector: 'app-settings-admin',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatButtonModule,
-    MatSnackBarModule,
-  ],
+    MatSnackBarModule
+],
   templateUrl: './settings-admin.html',
   styleUrl: './settings-admin.css',
 })
@@ -49,6 +53,18 @@ export class SettingsAdmin implements OnInit {
     label_printer_ip: new FormControl('', {
       nonNullable: true,
       validators: [Validators.maxLength(120)],
+    }),
+    label_printer_width_mm: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.pattern(/^\d*$/), Validators.maxLength(4)],
+    }),
+    label_printer_height_mm: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.pattern(/^\d*$/), Validators.maxLength(4)],
+    }),
+    label_printer_dpi: new FormControl('203', {
+      nonNullable: true,
+      validators: [Validators.pattern(/^(203|300)$/)],
     }),
     guest_qr_invite_text: new FormControl(DEFAULT_INVITE_TEXT, {
       nonNullable: true,
@@ -77,10 +93,14 @@ export class SettingsAdmin implements OnInit {
       }
 
       const values = (res || {}) as Record<string, any>;
+      const labelPrinterDpi = String(values['label_printer_dpi'] ?? '203');
 
       this.form.patchValue({
         receipt_printer_ip: String(values['receipt_printer_ip'] || ''),
         label_printer_ip: String(values['label_printer_ip'] || ''),
+        label_printer_width_mm: String(values['label_printer_width_mm'] || ''),
+        label_printer_height_mm: String(values['label_printer_height_mm'] || ''),
+        label_printer_dpi: labelPrinterDpi === '300' ? '300' : '203',
         guest_qr_invite_text: String(values['guest_qr_invite_text'] || DEFAULT_INVITE_TEXT),
       });
     });
@@ -96,6 +116,9 @@ export class SettingsAdmin implements OnInit {
     const payload = {
       receipt_printer_ip: this.form.controls.receipt_printer_ip.value.trim(),
       label_printer_ip: this.form.controls.label_printer_ip.value.trim(),
+      label_printer_width_mm: this.form.controls.label_printer_width_mm.value.trim(),
+      label_printer_height_mm: this.form.controls.label_printer_height_mm.value.trim(),
+      label_printer_dpi: Number(this.form.controls.label_printer_dpi.value),
       guest_qr_invite_text: this.form.controls.guest_qr_invite_text.value.trim(),
     };
 

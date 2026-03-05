@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -53,7 +53,6 @@ interface Item {
   selector: 'app-item-edit',
   standalone: true,
   imports: [
-    CommonModule,
     RouterModule,
     ReactiveFormsModule,
     MatCardModule,
@@ -64,8 +63,8 @@ interface Item {
     MatIconModule,
     MatSlideToggleModule,
     MatSnackBarModule,
-    HtmlEditor,
-  ],
+    HtmlEditor
+],
   templateUrl: './item-edit.html',
   styleUrls: ['./item-edit.css'],
 })
@@ -119,9 +118,6 @@ export class ItemEdit implements OnInit, OnDestroy {
     this.stopCamera();
   }
 
-  trackByIndex(index: number): number {
-    return index;
-  }
 
   addOrderAttributeRow(): void {
     this.orderAttributeRows.update((rows) => [

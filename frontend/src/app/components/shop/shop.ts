@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -41,7 +41,6 @@ interface CartLine {
   selector: 'app-shop',
   standalone: true,
   imports: [
-    CommonModule,
     MatCardModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -49,8 +48,8 @@ interface CartLine {
     MatSelectModule,
     MatIconModule,
     MatDialogModule,
-    MatSnackBarModule,
-  ],
+    MatSnackBarModule
+],
   templateUrl: './shop.html',
   styleUrl: './shop.css',
 })

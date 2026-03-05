@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, inject } from '@angular/core';
 import { ReactiveFormsModule, UntypedFormControl, UntypedFormGroup, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,15 +28,14 @@ export interface OrderAttributesDialogData {
   selector: 'app-order-attributes-dialog',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
     MatCheckboxModule,
-    MatButtonModule,
-  ],
+    MatButtonModule
+],
   templateUrl: './order-attributes-dialog.html',
   styleUrl: './order-attributes-dialog.css',
 })

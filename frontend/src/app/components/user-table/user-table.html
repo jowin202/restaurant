@@ -24,27 +24,39 @@
       </button>
     </div>
 
-    <div class="bulk-result" *ngIf="bulkResult as result">
-      <div class="bulk-summary">
-        Importiert: <strong>{{ result.created_count }}</strong> von {{ result.line_count }} Zeilen
-      </div>
-      <div class="bulk-summary" *ngIf="result.printer_ip">Drucker: {{ result.printer_ip }}</div>
-
-      <div class="bulk-warnings" *ngIf="result.warnings?.length">
-        <div class="warning" *ngFor="let warning of result.warnings">{{ warning }}</div>
-      </div>
-
-      <div class="bulk-users" *ngIf="result.users?.length">
-        <div class="bulk-user-row" *ngFor="let user of result.users">
-          <div>
-            <div><strong>{{ user.name }}</strong> ({{ user.username }})</div>
-            <div class="print-status">{{ printerStatusLabel(user.print_status) }}</div>
-            <div class="print-error" *ngIf="user.print_error">{{ user.print_error }}</div>
-          </div>
-          <button mat-stroked-button type="button" (click)="copyLink(user.login_link)">Link kopieren</button>
+    @if (bulkResult; as result) {
+      <div class="bulk-result">
+        <div class="bulk-summary">
+          Importiert: <strong>{{ result.created_count }}</strong> von {{ result.line_count }} Zeilen
         </div>
+        @if (result.printer_ip) {
+          <div class="bulk-summary">Drucker: {{ result.printer_ip }}</div>
+        }
+        @if (result.warnings.length) {
+          <div class="bulk-warnings">
+            @for (warning of result.warnings; track warning) {
+              <div class="warning">{{ warning }}</div>
+            }
+          </div>
+        }
+        @if (result.users.length) {
+          <div class="bulk-users">
+            @for (user of result.users; track user) {
+              <div class="bulk-user-row">
+                <div>
+                  <div><strong>{{ user.name }}</strong> ({{ user.username }})</div>
+                  <div class="print-status">{{ printerStatusLabel(user.print_status) }}</div>
+                  @if (user.print_error) {
+                    <div class="print-error">{{ user.print_error }}</div>
+                  }
+                </div>
+                <button mat-stroked-button type="button" (click)="copyLink(user.login_link)">Link kopieren</button>
+              </div>
+            }
+          </div>
+        }
       </div>
-    </div>
+    }
   </div>
 
   <table mat-table [dataSource]="users" class="mat-elevation-z2">
@@ -88,7 +100,7 @@
           [disabled]="!canUserLinkActions(user)"
           matTooltip="Login-Link kopieren"
           (click)="copyUserLoginLink(user)"
-        >
+          >
           <mat-icon>content_copy</mat-icon>
         </button>
         <button
@@ -96,7 +108,7 @@
           [disabled]="!canUserLinkActions(user)"
           matTooltip="Willkommen erneut drucken"
           (click)="reprintWelcome(user)"
-        >
+          >
           <mat-icon>print</mat-icon>
         </button>
         <button mat-icon-button color="warn" [disabled]="!canAction(user)" (click)="deleteUser(user)">

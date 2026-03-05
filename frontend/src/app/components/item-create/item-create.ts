@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnDestroy, ViewChild, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -69,7 +69,6 @@ interface EanLookupResult {
   selector: 'app-item-create',
   standalone: true,
   imports: [
-    CommonModule,
     RouterModule,
     ReactiveFormsModule,
     MatCardModule,
@@ -80,8 +79,8 @@ interface EanLookupResult {
     MatIconModule,
     MatSlideToggleModule,
     MatSnackBarModule,
-    HtmlEditor,
-  ],
+    HtmlEditor
+],
   templateUrl: './item-create.html',
   styleUrls: ['./item-create.css'],
 })
@@ -137,10 +136,6 @@ export class ItemCreate implements OnDestroy {
   ngOnDestroy(): void {
     this.stopPhotoCamera();
     this.stopScanner();
-  }
-
-  trackByIndex(index: number): number {
-    return index;
   }
 
   addOrderAttributeRow(): void {

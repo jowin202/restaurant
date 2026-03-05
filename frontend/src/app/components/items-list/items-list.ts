@@ -1,5 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -44,7 +44,6 @@ interface DashboardData {
   selector: 'app-items-list',
   standalone: true,
   imports: [
-    CommonModule,
     RouterModule,
     MatCardModule,
     MatButtonModule,
@@ -52,8 +51,8 @@ interface DashboardData {
     MatInputModule,
     MatIconModule,
     MatDialogModule,
-    MatSnackBarModule,
-  ],
+    MatSnackBarModule
+],
   templateUrl: './items-list.html',
   styleUrls: ['./items-list.css'],
 })

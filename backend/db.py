@@ -87,6 +87,21 @@ async def db_init() -> None:
             }
         )
 
+    default_settings = {
+        "receipt_printer_ip": "",
+        "label_printer_ip": "",
+        "label_printer_width_mm": "",
+        "label_printer_height_mm": "",
+        "label_printer_dpi": 203,
+        "guest_qr_invite_text": "Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen.",
+    }
+    for key, value in default_settings.items():
+        await db.settings.update_one(
+            {"key": key},
+            {"$setOnInsert": {"key": key, "value": value}},
+            upsert=True,
+        )
+
 
 async def db_remove() -> None:
     db = await get_db()

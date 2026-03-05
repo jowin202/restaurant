@@ -22,59 +22,83 @@
         </mat-form-field>
       </div>
 
-      <div *ngIf="loading()" class="loading">Lade Shop...</div>
-      <div *ngIf="!loading() && visibleItems().length === 0" class="loading">Keine Produkte gefunden.</div>
+      @if (loading()) {
+        <div class="loading">Lade Shop...</div>
+      }
+      @if (!loading() && visibleItems().length === 0) {
+        <div class="loading">Keine Produkte gefunden.</div>
+      }
 
-      <div class="product-grid" *ngIf="!loading() && visibleItems().length > 0">
-        <div class="product-card" *ngFor="let item of visibleItems()">
-          <div class="image-wrap" *ngIf="primaryImage(item) as image">
-            <img [src]="image" [alt]="item.name" />
-            <div class="image-count-badge" *ngIf="extraImageCount(item) > 0">+{{ extraImageCount(item) }}</div>
-          </div>
-
-          <h3>{{ item.name }}</h3>
-          <div class="description-html" *ngIf="item.description_html" [innerHTML]="item.description_html"></div>
-          <div class="meta" *ngIf="item.quantity !== null">Verfügbar: {{ item.quantity }} {{ item.unit || '' }}</div>
-
-          <button mat-flat-button color="primary" (click)="addToCart(item)" [disabled]="!canAddToCart(item)">
-            {{ (item.order_attributes?.length || 0) > 0 ? 'Auswählen' : 'In den Warenkorb' }}
-          </button>
+      @if (!loading() && visibleItems().length > 0) {
+        <div class="product-grid">
+          @for (item of visibleItems(); track item) {
+            <div class="product-card">
+              @if (primaryImage(item); as image) {
+                <div class="image-wrap">
+                  <img [src]="image" [alt]="item.name" />
+                  @if (extraImageCount(item) > 0) {
+                    <div class="image-count-badge">+{{ extraImageCount(item) }}</div>
+                  }
+                </div>
+              }
+              <h3>{{ item.name }}</h3>
+              @if (item.description_html) {
+                <div class="description-html" [innerHTML]="item.description_html"></div>
+              }
+              @if (item.quantity !== null) {
+                <div class="meta">Verfügbar: {{ item.quantity }} {{ item.unit || '' }}</div>
+              }
+              <button mat-flat-button color="primary" (click)="addToCart(item)" [disabled]="!canAddToCart(item)">
+                {{ (item.order_attributes?.length || 0) > 0 ? 'Auswählen' : 'In den Warenkorb' }}
+              </button>
+            </div>
+          }
         </div>
-      </div>
+      }
     </mat-card>
 
     <mat-card class="cart-card">
       <h2>Warenkorb</h2>
 
-      <div *ngIf="cart().length === 0" class="loading">Noch keine Artikel ausgewählt.</div>
+      @if (cart().length === 0) {
+        <div class="loading">Noch keine Artikel ausgewählt.</div>
+      }
 
-      <div class="cart-list" *ngIf="cart().length > 0">
-        <div class="cart-line" *ngFor="let line of cart()">
-          <div>
-            <strong>{{ line.item.name }}</strong>
-            <div class="line-answers" *ngIf="lineAnswerEntries(line).length > 0">
-              <div class="answer-chip" *ngFor="let entry of lineAnswerEntries(line)">
-                {{ entry.label }}: {{ entry.value }}
+      @if (cart().length > 0) {
+        <div class="cart-list">
+          @for (line of cart(); track line) {
+            <div class="cart-line">
+              <div>
+                <strong>{{ line.item.name }}</strong>
+                @if (lineAnswerEntries(line).length > 0) {
+                  <div class="line-answers">
+                    @for (entry of lineAnswerEntries(line); track entry) {
+                      <div class="answer-chip">
+                        {{ entry.label }}: {{ entry.value }}
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+              <div class="line-actions">
+                @if ((line.item.order_attributes?.length || 0) > 0) {
+                  <button
+                    mat-icon-button
+                    (click)="editAnswers(line)"
+                    aria-label="Konfiguration bearbeiten"
+                    >
+                    <mat-icon>tune</mat-icon>
+                  </button>
+                }
+                <button mat-icon-button (click)="decrement(line)"><mat-icon>remove</mat-icon></button>
+                <span>{{ line.quantity }}</span>
+                <button mat-icon-button (click)="increment(line)" [disabled]="!canIncrement(line)"><mat-icon>add</mat-icon></button>
+                <button mat-icon-button color="warn" (click)="remove(line)"><mat-icon>delete</mat-icon></button>
               </div>
             </div>
-          </div>
-
-          <div class="line-actions">
-            <button
-              mat-icon-button
-              *ngIf="(line.item.order_attributes?.length || 0) > 0"
-              (click)="editAnswers(line)"
-              aria-label="Konfiguration bearbeiten"
-            >
-              <mat-icon>tune</mat-icon>
-            </button>
-            <button mat-icon-button (click)="decrement(line)"><mat-icon>remove</mat-icon></button>
-            <span>{{ line.quantity }}</span>
-            <button mat-icon-button (click)="increment(line)" [disabled]="!canIncrement(line)"><mat-icon>add</mat-icon></button>
-            <button mat-icon-button color="warn" (click)="remove(line)"><mat-icon>delete</mat-icon></button>
-          </div>
+          }
         </div>
-      </div>
+      }
 
       <mat-form-field appearance="outline" class="order-comment">
         <mat-label>Kommentar zur Bestellung</mat-label>

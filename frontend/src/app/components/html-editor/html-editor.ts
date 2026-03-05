@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, forwardRef, Input, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 @Component({
   selector: 'app-html-editor',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [MatButtonModule, MatIconModule],
   templateUrl: './html-editor.html',
   styleUrl: './html-editor.css',
   providers: [

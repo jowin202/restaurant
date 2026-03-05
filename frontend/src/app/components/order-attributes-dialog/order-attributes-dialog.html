@@ -4,25 +4,33 @@
   <p class="item-title">{{ data.itemName }}</p>
 
   <form [formGroup]="form" class="dialog-form">
-    <div class="field-row" *ngFor="let attr of data.attributes">
-      <ng-container [ngSwitch]="attr.input_type">
-        <mat-form-field appearance="outline" *ngSwitchCase="'string'" class="full-width">
-          <mat-label>{{ attr.label }}</mat-label>
-          <input matInput [formControlName]="attr.key" />
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" *ngSwitchCase="'select'" class="full-width">
-          <mat-label>{{ attr.label }}</mat-label>
-          <mat-select [formControlName]="attr.key">
-            <mat-option *ngFor="let option of attr.options" [value]="option">{{ option }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-checkbox *ngSwitchCase="'boolean'" [formControlName]="attr.key">
-          {{ attr.label }}
-        </mat-checkbox>
-      </ng-container>
-    </div>
+    @for (attr of data.attributes; track attr) {
+      <div class="field-row">
+        @switch (attr.input_type) {
+          @case ('string') {
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ attr.label }}</mat-label>
+              <input matInput [formControlName]="attr.key" />
+            </mat-form-field>
+          }
+          @case ('select') {
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ attr.label }}</mat-label>
+              <mat-select [formControlName]="attr.key">
+                @for (option of attr.options; track option) {
+                  <mat-option [value]="option">{{ option }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+          @case ('boolean') {
+            <mat-checkbox [formControlName]="attr.key">
+              {{ attr.label }}
+            </mat-checkbox>
+          }
+        }
+      </div>
+    }
   </form>
 </mat-dialog-content>
 

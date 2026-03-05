@@ -17,25 +17,29 @@
       </div>
 
       <video #inventoryVideo autoplay playsinline muted [class.hidden-video]="!scannerActive()"></video>
-      <div class="hint" *ngIf="scannerLoading()">ZXing Scanner wird geladen...</div>
-      <div class="hint" *ngIf="!scannerSupported()">Kamera im Browser nicht verfügbar.</div>
+      @if (scannerLoading()) {
+        <div class="hint">ZXing Scanner wird geladen...</div>
+      }
+      @if (!scannerSupported()) {
+        <div class="hint">Kamera im Browser nicht verfügbar.</div>
+      }
 
-      <div class="scan-hit" *ngIf="scanItem() as item">
-        <div class="title">{{ item.name }}</div>
-        <div class="meta">
-          Bestand: <strong>{{ item.quantity ?? 0 }} {{ item.unit || '' }}</strong>
+      @if (scanItem(); as item) {
+        <div class="scan-hit">
+          <div class="title">{{ item.name }}</div>
+          <div class="meta">
+            Bestand: <strong>{{ item.quantity ?? 0 }} {{ item.unit || '' }}</strong>
+          </div>
+          <div class="scan-actions">
+            <mat-form-field appearance="outline" class="small-input">
+              <mat-label>Menge</mat-label>
+              <input matInput type="number" [value]="scanDelta()" (input)="setScanDelta($any($event.target).value)" />
+            </mat-form-field>
+            <button mat-flat-button color="warn" (click)="applyScannedAdjust('consume')">-</button>
+            <button mat-flat-button color="primary" (click)="applyScannedAdjust('restock')">+</button>
+          </div>
         </div>
-
-        <div class="scan-actions">
-          <mat-form-field appearance="outline" class="small-input">
-            <mat-label>Menge</mat-label>
-            <input matInput type="number" [value]="scanDelta()" (input)="setScanDelta($any($event.target).value)" />
-          </mat-form-field>
-
-          <button mat-flat-button color="warn" (click)="applyScannedAdjust('consume')">-</button>
-          <button mat-flat-button color="primary" (click)="applyScannedAdjust('restock')">+</button>
-        </div>
-      </div>
+      }
     </mat-card>
 
     <mat-card class="list-card">
@@ -47,33 +51,39 @@
         </mat-form-field>
       </div>
 
-      <div *ngIf="loading()" class="hint">Lade Inventur-Liste...</div>
-      <div *ngIf="!loading() && visibleItems().length === 0" class="hint">Keine Produkte gefunden.</div>
+      @if (loading()) {
+        <div class="hint">Lade Inventur-Liste...</div>
+      }
+      @if (!loading() && visibleItems().length === 0) {
+        <div class="hint">Keine Produkte gefunden.</div>
+      }
 
-      <div class="rows" *ngIf="!loading() && visibleItems().length > 0">
-        <div class="row" *ngFor="let item of visibleItems()">
-          <div class="left">
-            <div class="title">{{ item.name }}</div>
-            <div class="meta">{{ item.item_type }} | EAN: {{ item.ean || '-' }}</div>
-            <div class="stock">Bestand: {{ item.quantity ?? 0 }} {{ item.unit || '' }}</div>
-          </div>
-
-          <div class="right">
-            <mat-form-field appearance="outline" class="small-input">
-              <mat-label>Delta</mat-label>
-              <input
-                matInput
-                type="number"
-                [value]="getRowDelta(item.id)"
-                (input)="setRowDelta(item.id, $any($event.target).value)"
-              />
-            </mat-form-field>
-
-            <button mat-icon-button color="warn" (click)="rowAdjust(item, 'consume')"><mat-icon>remove</mat-icon></button>
-            <button mat-icon-button color="primary" (click)="rowAdjust(item, 'restock')"><mat-icon>add</mat-icon></button>
-          </div>
+      @if (!loading() && visibleItems().length > 0) {
+        <div class="rows">
+          @for (item of visibleItems(); track item) {
+            <div class="row">
+              <div class="left">
+                <div class="title">{{ item.name }}</div>
+                <div class="meta">{{ item.item_type }} | EAN: {{ item.ean || '-' }}</div>
+                <div class="stock">Bestand: {{ item.quantity ?? 0 }} {{ item.unit || '' }}</div>
+              </div>
+              <div class="right">
+                <mat-form-field appearance="outline" class="small-input">
+                  <mat-label>Delta</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    [value]="getRowDelta(item.id)"
+                    (input)="setRowDelta(item.id, $any($event.target).value)"
+                    />
+                </mat-form-field>
+                <button mat-icon-button color="warn" (click)="rowAdjust(item, 'consume')"><mat-icon>remove</mat-icon></button>
+                <button mat-icon-button color="primary" (click)="rowAdjust(item, 'restock')"><mat-icon>add</mat-icon></button>
+              </div>
+            </div>
+          }
         </div>
-      </div>
+      }
     </mat-card>
   </div>
 </div>

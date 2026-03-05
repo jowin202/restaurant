@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, ViewChild, ElementRef, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -62,7 +62,6 @@ interface EanLookupResult {
   selector: 'app-dashboard',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     MatCardModule,
     MatFormFieldModule,
@@ -70,8 +69,8 @@ interface EanLookupResult {
     MatSelectModule,
     MatButtonModule,
     MatIconModule,
-    MatSnackBarModule,
-  ],
+    MatSnackBarModule
+],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })

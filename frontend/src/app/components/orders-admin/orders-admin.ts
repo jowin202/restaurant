@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -31,7 +31,7 @@ interface AdminOrder {
 @Component({
   selector: 'app-orders-admin',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatSnackBarModule],
+  imports: [MatCardModule, MatButtonModule, MatSnackBarModule],
   templateUrl: './orders-admin.html',
   styleUrl: './orders-admin.css',
 })
