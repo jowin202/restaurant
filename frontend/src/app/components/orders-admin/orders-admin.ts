@@ -209,6 +209,19 @@ export class OrdersAdmin implements OnInit {
     return Boolean(order.payment?.prices_enabled);
   }
 
+  orderPrice(order: AdminOrder): number {
+    const subtotal = Number(order.payment?.subtotal_eur);
+    if (Number.isFinite(subtotal)) return subtotal;
+
+    const credit = Number(order.payment?.credit_applied_eur);
+    if (Number.isFinite(credit)) return credit;
+
+    const due = Number(order.payment?.total_due_eur);
+    if (Number.isFinite(due)) return due;
+
+    return 0;
+  }
+
   formatPrice(value: number | null | undefined): string {
     const numeric = Number(value ?? 0);
     const rounded = Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;

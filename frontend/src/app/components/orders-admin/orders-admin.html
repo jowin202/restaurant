@@ -46,16 +46,8 @@
             @if (showPrices(order)) {
               <div class="order-payment">
                 <div>
-                  <span>Zwischensumme</span>
-                  <strong>{{ formatPrice(order.payment?.subtotal_eur) }}</strong>
-                </div>
-                <div>
-                  <span>Guthaben</span>
-                  <strong>-{{ formatPrice(order.payment?.credit_applied_eur) }}</strong>
-                </div>
-                <div>
-                  <span>Offen</span>
-                  <strong>{{ formatPrice(order.payment?.total_due_eur) }}</strong>
+                  <span>Preis</span>
+                  <strong>{{ formatPrice(orderPrice(order)) }}</strong>
                 </div>
               </div>
             }

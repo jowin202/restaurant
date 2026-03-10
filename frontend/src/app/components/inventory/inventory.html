@@ -60,7 +60,7 @@
 
       @if (!loading() && visibleItems().length > 0) {
         <div class="rows">
-          @for (item of visibleItems(); track item) {
+          @for (item of visibleItems(); track item.id) {
             <div class="row">
               <div class="left">
                 <div class="title">{{ item.name }}</div>
