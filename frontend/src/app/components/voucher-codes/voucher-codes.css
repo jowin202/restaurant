@@ -32,6 +32,19 @@
   height: 56px;
 }
 
+.filter-row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field {
+  width: 240px;
+}
+
 .disabled-box {
   border: 1px solid #f3c96a;
   background: #fff8e6;
@@ -52,6 +65,7 @@
 .codes-list {
   display: grid;
   gap: 8px;
+  margin-bottom: 8px;
 }
 
 .code-row {
@@ -93,6 +107,12 @@
   font-size: 0.82rem;
 }
 
+mat-paginator {
+  border: 1px solid #e4e9f5;
+  border-radius: 8px;
+  background: #fff;
+}
+
 @media (max-width: 980px) {
   .generate-grid {
     grid-template-columns: 1fr;
@@ -100,7 +120,8 @@
 
   .disabled-box,
   .header-row,
-  .code-main {
+  .code-main,
+  .filter-row {
     flex-direction: column;
     align-items: stretch;
   }

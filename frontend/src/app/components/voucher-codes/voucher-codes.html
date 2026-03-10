@@ -37,6 +37,21 @@
           Codes generieren
         </button>
       </div>
+
+      <div class="filter-row">
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Anzeige</mat-label>
+          <mat-select [value]="filter()" (selectionChange)="setFilter($event.value)">
+            <mat-option value="active">Freie Codes</mat-option>
+            <mat-option value="redeemed">Verbrauchte Codes</mat-option>
+            <mat-option value="expired">Abgelaufene Codes</mat-option>
+            <mat-option value="all">Alle Codes</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="exportPdf()" [disabled]="loading() || exportingPdf() || items().length === 0">
+          {{ exportingPdf() ? 'PDF wird erstellt...' : 'A4 PDF exportieren' }}
+        </button>
+      </div>
     }
 
     @if (loading()) {
@@ -44,12 +59,12 @@
     }
 
     @if (!loading() && items().length === 0) {
-      <div class="loading">Keine Gutschein-Codes vorhanden.</div>
+      <div class="loading">Keine Einträge für: {{ filterLabel(filter()) }}</div>
     }
 
     @if (!loading() && items().length > 0) {
       <div class="codes-list">
-        @for (row of items(); track row.id) {
+        @for (row of pagedItems(); track row.id) {
           <div class="code-row">
             <div class="code-main">
               <strong>{{ row.code }}</strong>
@@ -67,6 +82,16 @@
           </div>
         }
       </div>
+      <mat-paginator
+        [length]="items().length"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [hidePageSize]="false"
+        showFirstLastButtons
+        (page)="onPageChanged($event)"
+        aria-label="Gutschein Codes Seiten"
+      ></mat-paginator>
     }
   </mat-card>
 </div>

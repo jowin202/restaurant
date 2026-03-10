@@ -38,6 +38,7 @@ class UserOut(UserBase):
 
 class UserListOut(UserOut):
     login_link: Optional[str] = None
+    credit_balance_eur: float = 0.0
 
 
 class BulkImportUsersRequest(BaseModel):
@@ -47,6 +48,11 @@ class BulkImportUsersRequest(BaseModel):
 
 router = APIRouter()
 settings_manager = SettingsManager()
+
+
+def _credit_eur_from_cents(value: Any) -> float:
+    cents = max(0, int(value or 0))
+    return round(cents / 100.0, 2)
 
 
 def _slugify_name(value: str) -> str:
@@ -223,7 +229,16 @@ async def get_all_users(request: Request):
     db = await get_db()
     rows = await db.users.find(
         {},
-        {"_id": 0, "id": 1, "username": 1, "name": 1, "mail": 1, "admin": 1, "magic_login_token": 1},
+        {
+            "_id": 0,
+            "id": 1,
+            "username": 1,
+            "name": 1,
+            "mail": 1,
+            "admin": 1,
+            "magic_login_token": 1,
+            "credit_balance_cents": 1,
+        },
     ).sort("id", 1).to_list(length=None)
 
     login_base_url = _build_login_base_url(request, None)
@@ -231,7 +246,9 @@ async def get_all_users(request: Request):
         if int(row.get("admin", 0)) == 0:
             login_token = await _ensure_user_magic_login_token(db, row)
             row["login_link"] = _build_magic_login_link(login_base_url, login_token)
+        row["credit_balance_eur"] = _credit_eur_from_cents(row.get("credit_balance_cents"))
         row.pop("magic_login_token", None)
+        row.pop("credit_balance_cents", None)
 
     return rows
 

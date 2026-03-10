@@ -1,11 +1,17 @@
 import secrets
+from io import BytesIO
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfgen import canvas
 
 from db import get_db
 from settingsmgr import SettingsManager
@@ -91,24 +97,24 @@ def _serialize_admin_voucher(doc: Dict[str, Any], now: datetime) -> Dict[str, An
     }
 
 
-def _normalize_datetime_input(value: Any) -> Any:
-    if not isinstance(value, datetime):
-        return value
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+def _voucher_query_for_status(status: Literal["active", "redeemed", "expired", "all"], now: datetime) -> Dict[str, Any]:
+    if status == "all":
+        return {}
+    if status == "redeemed":
+        return {"redeemed_at": {"$ne": None}}
+    if status == "expired":
+        return {"redeemed_at": None, "expires_at": {"$lt": now}}
+    return {"redeemed_at": None, "expires_at": {"$gte": now}}
 
 
-@router.get("/")
-async def list_voucher_codes(request: Request, limit: int = Query(default=120, ge=1, le=500)):
-    if getattr(request.state, "admin", 0) <= 0:
-        raise HTTPException(status_code=403, detail="Nur Admins dürfen Gutschein-Codes sehen")
-
-    db = await get_db()
-    now = datetime.now(timezone.utc)
-
+async def _load_voucher_docs(
+    db: Any,
+    status: Literal["active", "redeemed", "expired", "all"],
+    limit: int,
+    now: datetime,
+) -> List[Dict[str, Any]]:
     docs = await db.voucher_codes.find(
-        {},
+        _voucher_query_for_status(status, now),
         {
             "code_raw": 1,
             "amount_cents": 1,
@@ -119,21 +125,154 @@ async def list_voucher_codes(request: Request, limit: int = Query(default=120, g
             "redeemed_by_name": 1,
         },
     ).sort("created_at", -1).limit(limit).to_list(length=limit)
-    docs = [
+
+    return [
         {
             **doc,
-            "expires_at": _normalize_datetime_input(doc.get("expires_at")),
-            "created_at": _normalize_datetime_input(doc.get("created_at")),
-            "redeemed_at": _normalize_datetime_input(doc.get("redeemed_at")),
+            "expires_at": _to_utc_aware(doc.get("expires_at")),
+            "created_at": _to_utc_aware(doc.get("created_at")),
+            "redeemed_at": _to_utc_aware(doc.get("redeemed_at")),
         }
         for doc in docs
     ]
 
+
+def _format_pdf_valid_until(value: Any) -> str:
+    if not isinstance(value, datetime):
+        return "-"
+    return _to_utc_aware(value).strftime("%d.%m.%Y %H:%M UTC")
+
+
+def _build_voucher_pdf_bytes(items: List[Dict[str, Any]]) -> bytes:
+    page_width, page_height = A4
+    margin_x = 12 * mm
+    margin_y = 12 * mm
+    gap_x = 8 * mm
+    gap_y = 8 * mm
+    cards_per_row = 2
+    rows_per_page = 4
+    cards_per_page = cards_per_row * rows_per_page
+
+    card_width = (page_width - (2 * margin_x) - gap_x) / cards_per_row
+    card_height = (page_height - (2 * margin_y) - (gap_y * (rows_per_page - 1))) / rows_per_page
+
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+
+    def fit_font_size(text: str, font_name: str, start_size: float, min_size: float, max_width: float) -> float:
+        size = start_size
+        while size > min_size and pdfmetrics.stringWidth(text, font_name, size) > max_width:
+            size -= 0.5
+        return max(min_size, size)
+
+    for index, item in enumerate(items):
+        slot = index % cards_per_page
+        if index > 0 and slot == 0:
+            pdf.showPage()
+
+        row = slot // cards_per_row
+        col = slot % cards_per_row
+
+        x = margin_x + col * (card_width + gap_x)
+        y = page_height - margin_y - ((row + 1) * card_height) - (row * gap_y)
+
+        pdf.roundRect(x, y, card_width, card_height, 6, stroke=1, fill=0)
+
+        inner_x = x + 6 * mm
+        top_y = y + card_height - 7 * mm
+
+        code = _format_code(str(item.get("code_raw") or ""))
+        if not code.strip("-"):
+            code = "-"
+        amount_eur = _from_cents(int(item.get("amount_cents") or 0))
+        valid_until = _format_pdf_valid_until(item.get("expires_at"))
+
+        pdf.setFont("Helvetica-Bold", 11)
+        pdf.drawString(inner_x, top_y, "Gutschein-Code")
+
+        code_font_name = "Courier-Bold"
+        code_max_width = card_width - (12 * mm)
+        code_font_size = fit_font_size(
+            text=code,
+            font_name=code_font_name,
+            start_size=16,
+            min_size=8,
+            max_width=code_max_width,
+        )
+        pdf.setFont(code_font_name, code_font_size)
+        pdf.drawCentredString(x + (card_width / 2), top_y - (8 * mm), code)
+
+        pdf.setFont("Helvetica", 12)
+        pdf.drawString(inner_x, top_y - (16 * mm), f"Betrag: {amount_eur:.2f} EUR")
+        pdf.drawString(inner_x, top_y - (22 * mm), f"Gueltig bis: {valid_until}")
+
+    pdf.save()
+    return buffer.getvalue()
+
+
+@router.get("/")
+async def list_voucher_codes(
+    request: Request,
+    status: Literal["active", "redeemed", "expired", "all"] = Query(default="active"),
+    limit: int = Query(default=120, ge=1, le=500),
+):
+    if getattr(request.state, "admin", 0) <= 0:
+        raise HTTPException(status_code=403, detail="Nur Admins dürfen Gutschein-Codes sehen")
+
+    db = await get_db()
+    now = datetime.now(timezone.utc)
+
+    docs = await _load_voucher_docs(db=db, status=status, limit=limit, now=now)
+
     return {
         "status": "success",
+        "filter": status,
         "vouchers_enabled": _setting_enabled(settings_manager.get_setting("voucher_codes_enabled")),
         "items": [_serialize_admin_voucher(doc, now) for doc in docs],
     }
+
+
+@router.get("/export/pdf/")
+async def export_voucher_codes_pdf_default(
+    request: Request,
+    status: Literal["active", "redeemed", "expired", "all"] = Query(default="active"),
+    limit: int = Query(default=1000, ge=1, le=5000),
+):
+    return await _export_voucher_codes_pdf_impl(request=request, status=status, limit=limit)
+
+
+@router.get("/export/pdf/{status}/")
+async def export_voucher_codes_pdf_by_path(
+    request: Request,
+    status: Literal["active", "redeemed", "expired", "all"],
+    limit: int = Query(default=1000, ge=1, le=5000),
+):
+    return await _export_voucher_codes_pdf_impl(request=request, status=status, limit=limit)
+
+
+async def _export_voucher_codes_pdf_impl(
+    request: Request,
+    status: Literal["active", "redeemed", "expired", "all"],
+    limit: int,
+):
+    if getattr(request.state, "admin", 0) <= 0:
+        raise HTTPException(status_code=403, detail="Nur Admins dürfen Gutschein-Codes exportieren")
+
+    db = await get_db()
+    now = datetime.now(timezone.utc)
+    docs = await _load_voucher_docs(db=db, status=status, limit=limit, now=now)
+    if not docs:
+        raise HTTPException(status_code=404, detail="Keine Gutschein-Codes für den gewählten Filter gefunden")
+
+    pdf_bytes = _build_voucher_pdf_bytes(docs)
+    timestamp = now.strftime("%Y%m%d-%H%M%S")
+    filename = f"gutschein-codes-{status}-{timestamp}.pdf"
+
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/generate/")

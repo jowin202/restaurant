@@ -1,8 +1,9 @@
 
-import { ChangeDetectorRef, Component } from '@angular/core';
+import { ChangeDetectorRef, Component, ViewChild } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -21,6 +22,7 @@ export interface User {
   mail: string;
   admin: number;
   login_link?: string;
+  credit_balance_eur?: number;
 }
 
 interface BulkCreatedUser {
@@ -50,14 +52,20 @@ interface BulkImportResponse {
     MatButtonModule,
     MatTooltipModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
+    MatPaginatorModule
 ],
   templateUrl: './user-table.html',
   styleUrl: './user-table.css',
 })
 export class UserTable {
+  @ViewChild(MatPaginator) paginator?: MatPaginator;
+
   users: User[] = [];
-  displayedColumns: string[] = ['id', 'username', 'name', 'mail', 'role', 'actions'];
+  dataSource = new MatTableDataSource<User>([]);
+  displayedColumns: string[] = ['id', 'username', 'name', 'mail', 'credit', 'role', 'actions'];
+  pageSizeOptions = [10, 25, 50, 100];
+  totalUsers = 0;
   bulkLines = '';
   bulkLoading = false;
   bulkResult: BulkImportResponse | null = null;
@@ -72,6 +80,16 @@ export class UserTable {
 
   ngOnInit(): void {
     this.loadUsers();
+  }
+
+  ngAfterViewInit(): void {
+    if (!this.paginator) return;
+    this.paginator._intl.itemsPerPageLabel = 'Pro Seite';
+    this.paginator._intl.nextPageLabel = 'Nächste Seite';
+    this.paginator._intl.previousPageLabel = 'Vorherige Seite';
+    this.paginator._intl.firstPageLabel = 'Erste Seite';
+    this.paginator._intl.lastPageLabel = 'Letzte Seite';
+    this.dataSource.paginator = this.paginator;
   }
 
   /**
@@ -93,11 +111,23 @@ export class UserTable {
   loadUsers(): void {
     this.api.get("/api/users/", this.auth.token()).subscribe({
       next: (data) => {
-        this.users = data;
+        this.users = Array.isArray(data) ? data : [];
+        this.totalUsers = this.users.length;
+        this.dataSource.data = this.users;
+        if (this.paginator) {
+          this.dataSource.paginator = this.paginator;
+          this.paginator.firstPage();
+        }
         this.cdr.detectChanges();
       },
       error: (err) => console.error(err)
     });
+  }
+
+  formatCredit(value: number | undefined): string {
+    const numeric = Number(value ?? 0);
+    const rounded = Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
+    return `${rounded.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
   }
 
   deleteUser(user: User): void {
