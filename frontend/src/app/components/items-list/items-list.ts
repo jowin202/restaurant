@@ -64,23 +64,14 @@ export class ItemsList implements OnInit {
   private dialog = inject(MatDialog);
 
   loading = signal(true);
-  searchText = signal('');
+  foodSearchText = signal('');
+  drinkSearchText = signal('');
 
   dashboardData = signal<DashboardData | null>(null);
   items = signal<Item[]>([]);
 
-  visibleItems = computed(() => {
-    const search = this.searchText().trim().toLowerCase();
-    if (!search) return this.items();
-
-    return this.items().filter((item) => {
-      const inName = item.name.toLowerCase().includes(search);
-      const inType = item.item_type.toLowerCase().includes(search);
-      const inEan = (item.ean || '').toLowerCase().includes(search);
-      const inDescription = this.stripHtml(item.description_html || '').toLowerCase().includes(search);
-      return inName || inType || inEan || inDescription;
-    });
-  });
+  foodItems = computed(() => this.itemsByTypeAndSearch('essen', this.foodSearchText()));
+  drinkItems = computed(() => this.itemsByTypeAndSearch('getränk', this.drinkSearchText()));
 
   ngOnInit(): void {
     this.reload();
@@ -108,8 +99,12 @@ export class ItemsList implements OnInit {
     });
   }
 
-  onSearchChange(value: string): void {
-    this.searchText.set(value);
+  onFoodSearchChange(value: string): void {
+    this.foodSearchText.set(value);
+  }
+
+  onDrinkSearchChange(value: string): void {
+    this.drinkSearchText.set(value);
   }
 
   remove(item: Item): void {
@@ -180,5 +175,19 @@ export class ItemsList implements OnInit {
 
   private isApiError(response: any): boolean {
     return Array.isArray(response) && response.length > 0 && response[0]?.error_code !== undefined;
+  }
+
+  private itemsByTypeAndSearch(type: ItemType, searchText: string): Item[] {
+    const search = searchText.trim().toLowerCase();
+    return this.items().filter((item) => {
+      if (item.item_type !== type) return false;
+      if (!search) return true;
+
+      const inName = item.name.toLowerCase().includes(search);
+      const inType = item.item_type.toLowerCase().includes(search);
+      const inEan = (item.ean || '').toLowerCase().includes(search);
+      const inDescription = this.stripHtml(item.description_html || '').toLowerCase().includes(search);
+      return inName || inType || inEan || inDescription;
+    });
   }
 }

@@ -25,11 +25,6 @@
       <h2>Essen & Getränke</h2>
 
       <div class="header-actions">
-        <mat-form-field appearance="outline">
-          <mat-label>Suchen</mat-label>
-          <input matInput (input)="onSearchChange($any($event.target).value)" placeholder="Name, Typ, EAN, Attribut" />
-        </mat-form-field>
-
         <a mat-flat-button color="primary" routerLink="/items/new">
           <mat-icon>add</mat-icon>
           Neues Item
@@ -40,52 +35,127 @@
     @if (loading()) {
       <div class="loading">Lade Daten...</div>
     }
-    @if (!loading() && visibleItems().length === 0) {
-      <div class="loading">Keine Items gefunden.</div>
-    }
-
-    @if (!loading() && visibleItems().length > 0) {
-      <div class="item-grid">
-        @for (item of visibleItems(); track item) {
-          <div class="item-card">
-            @if (primaryImage(item); as image) {
-              <div class="image-wrap">
-                <img [src]="image" [alt]="item.name" />
-                @if (extraImageCount(item) > 0) {
-                  <div class="image-count-badge">+{{ extraImageCount(item) }}</div>
-                }
-              </div>
-            }
-            <div class="item-head">
-              <h3>{{ item.name }}</h3>
-              <span class="type">{{ item.item_type }}</span>
+    @if (!loading()) {
+      <div class="type-panels">
+        <section class="type-panel">
+          <div class="type-panel-header">
+            <div class="type-panel-title">
+              <span>Essen</span>
+              <span class="type-count">{{ foodItems().length }}</span>
             </div>
-            <div class="meta">
-              <span>{{ (item.quantity ?? 0) > 0 ? 'Verfügbar' : 'Nicht verfügbar' }}</span>
-              @if (item.quantity !== null) {
-                <span>{{ item.quantity }} {{ item.unit || '' }}</span>
-              }
-            </div>
-            <div class="meta">
-              <span>Preis: {{ formatPrice(item.price_eur) }}</span>
-            </div>
-            @if (item.ean) {
-              <div class="meta">
-                <span>EAN: {{ item.ean }}</span>
-              </div>
-            }
-            @if (item.description_html) {
-              <div class="description-html" [innerHTML]="item.description_html"></div>
-            }
-            <div class="item-actions">
-              <a mat-button color="primary" [routerLink]="['/items', item.id, 'edit']">Bearbeiten</a>
-              <button mat-button color="warn" (click)="remove(item)">Löschen</button>
-              @if (item.has_image) {
-                <button mat-button (click)="removeImage(item)">Bild entfernen</button>
-              }
-            </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Essen suchen</mat-label>
+              <input matInput (input)="onFoodSearchChange($any($event.target).value)" placeholder="Name, EAN, Attribut" />
+            </mat-form-field>
           </div>
-        }
+
+          @if (foodItems().length === 0) {
+            <div class="loading">Keine Essen-Items gefunden.</div>
+          } @else {
+            <div class="item-grid">
+              @for (item of foodItems(); track item.id) {
+                <div class="item-card">
+                  @if (primaryImage(item); as image) {
+                    <div class="image-wrap">
+                      <img [src]="image" [alt]="item.name" />
+                      @if (extraImageCount(item) > 0) {
+                        <div class="image-count-badge">+{{ extraImageCount(item) }}</div>
+                      }
+                    </div>
+                  }
+                  <div class="item-head">
+                    <h3>{{ item.name }}</h3>
+                    <span class="type">{{ item.item_type }}</span>
+                  </div>
+                  <div class="meta">
+                    <span>{{ (item.quantity ?? 0) > 0 ? 'Verfügbar' : 'Nicht verfügbar' }}</span>
+                    @if (item.quantity !== null) {
+                      <span>{{ item.quantity }} {{ item.unit || '' }}</span>
+                    }
+                  </div>
+                  <div class="meta">
+                    <span>Preis: {{ formatPrice(item.price_eur) }}</span>
+                  </div>
+                  @if (item.ean) {
+                    <div class="meta">
+                      <span>EAN: {{ item.ean }}</span>
+                    </div>
+                  }
+                  @if (item.description_html) {
+                    <div class="description-html" [innerHTML]="item.description_html"></div>
+                  }
+                  <div class="item-actions">
+                    <a mat-button color="primary" [routerLink]="['/items', item.id, 'edit']">Bearbeiten</a>
+                    <button mat-button color="warn" (click)="remove(item)">Löschen</button>
+                    @if (item.has_image) {
+                      <button mat-button (click)="removeImage(item)">Bild entfernen</button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        <section class="type-panel">
+          <div class="type-panel-header">
+            <div class="type-panel-title">
+              <span>Getränke</span>
+              <span class="type-count">{{ drinkItems().length }}</span>
+            </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Getränke suchen</mat-label>
+              <input matInput (input)="onDrinkSearchChange($any($event.target).value)" placeholder="Name, EAN, Attribut" />
+            </mat-form-field>
+          </div>
+
+          @if (drinkItems().length === 0) {
+            <div class="loading">Keine Getränke-Items gefunden.</div>
+          } @else {
+            <div class="item-grid">
+              @for (item of drinkItems(); track item.id) {
+                <div class="item-card">
+                  @if (primaryImage(item); as image) {
+                    <div class="image-wrap">
+                      <img [src]="image" [alt]="item.name" />
+                      @if (extraImageCount(item) > 0) {
+                        <div class="image-count-badge">+{{ extraImageCount(item) }}</div>
+                      }
+                    </div>
+                  }
+                  <div class="item-head">
+                    <h3>{{ item.name }}</h3>
+                    <span class="type">{{ item.item_type }}</span>
+                  </div>
+                  <div class="meta">
+                    <span>{{ (item.quantity ?? 0) > 0 ? 'Verfügbar' : 'Nicht verfügbar' }}</span>
+                    @if (item.quantity !== null) {
+                      <span>{{ item.quantity }} {{ item.unit || '' }}</span>
+                    }
+                  </div>
+                  <div class="meta">
+                    <span>Preis: {{ formatPrice(item.price_eur) }}</span>
+                  </div>
+                  @if (item.ean) {
+                    <div class="meta">
+                      <span>EAN: {{ item.ean }}</span>
+                    </div>
+                  }
+                  @if (item.description_html) {
+                    <div class="description-html" [innerHTML]="item.description_html"></div>
+                  }
+                  <div class="item-actions">
+                    <a mat-button color="primary" [routerLink]="['/items', item.id, 'edit']">Bearbeiten</a>
+                    <button mat-button color="warn" (click)="remove(item)">Löschen</button>
+                    @if (item.has_image) {
+                      <button mat-button (click)="removeImage(item)">Bild entfernen</button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </section>
       </div>
     }
 
@@ -99,7 +169,7 @@
           <span class="low-stock-count">{{ dashboardData()?.alerts?.low_stock?.length }}</span>
         </div>
         <div class="low-stock-list">
-          @for (low of dashboardData()?.alerts?.low_stock; track low) {
+          @for (low of dashboardData()?.alerts?.low_stock; track low.id) {
             <div class="low-stock-row">
               <div class="low-stock-main">
                 <span class="low-stock-dot" [class.low-stock-dot-critical]="(low.quantity ?? 0) <= 0"></span>

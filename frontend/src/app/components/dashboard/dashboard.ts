@@ -87,7 +87,8 @@ export class Dashboard implements OnInit, OnDestroy {
 
   loading = signal(true);
   saving = signal(false);
-  searchText = signal('');
+  foodSearchText = signal('');
+  drinkSearchText = signal('');
   selectedFiles = signal<File[]>([]);
   editingId = signal<string | null>(null);
 
@@ -115,17 +116,8 @@ export class Dashboard implements OnInit, OnDestroy {
     ean: new FormControl<string>(''),
   });
 
-  visibleItems = computed(() => {
-    const search = this.searchText().trim().toLowerCase();
-    if (!search) return this.items();
-
-    return this.items().filter((item) => {
-      const inName = item.name.toLowerCase().includes(search);
-      const inType = item.item_type.toLowerCase().includes(search);
-      const inEan = (item.ean || '').toLowerCase().includes(search);
-      return inName || inType || inEan;
-    });
-  });
+  foodItems = computed(() => this.itemsByTypeAndSearch('essen', this.foodSearchText()));
+  drinkItems = computed(() => this.itemsByTypeAndSearch('getränk', this.drinkSearchText()));
 
   ngOnInit(): void {
     this.reload();
@@ -157,8 +149,12 @@ export class Dashboard implements OnInit, OnDestroy {
     });
   }
 
-  onSearchChange(value: string): void {
-    this.searchText.set(value);
+  onFoodSearchChange(value: string): void {
+    this.foodSearchText.set(value);
+  }
+
+  onDrinkSearchChange(value: string): void {
+    this.drinkSearchText.set(value);
   }
 
   onFileSelected(event: Event): void {
@@ -515,5 +511,18 @@ export class Dashboard implements OnInit, OnDestroy {
 
   private isApiError(response: any): boolean {
     return Array.isArray(response) && response.length > 0 && response[0]?.error_code !== undefined;
+  }
+
+  private itemsByTypeAndSearch(type: ItemType, searchText: string): Item[] {
+    const normalizedSearch = searchText.trim().toLowerCase();
+    return this.items().filter((item) => {
+      if (item.item_type !== type) return false;
+      if (!normalizedSearch) return true;
+
+      const inName = item.name.toLowerCase().includes(normalizedSearch);
+      const inType = item.item_type.toLowerCase().includes(normalizedSearch);
+      const inEan = (item.ean || '').toLowerCase().includes(normalizedSearch);
+      return inName || inType || inEan;
+    });
   }
 }
