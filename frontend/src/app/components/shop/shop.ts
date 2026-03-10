@@ -23,6 +23,7 @@ interface Item {
   name: string;
   item_type: ItemType;
   description_html?: string | null;
+  price_eur?: number | null;
   quantity: number | null;
   unit: string | null;
   image_data_url?: string | null;
@@ -35,6 +36,25 @@ interface CartLine {
   item: Item;
   quantity: number;
   order_answers: Record<string, any>;
+}
+
+interface ShopConfigResponse {
+  prices_enabled?: boolean;
+  voucher_codes_enabled?: boolean;
+}
+
+interface BalanceResponse {
+  balance_eur?: number;
+  vouchers_enabled?: boolean;
+}
+
+interface CheckoutPayment {
+  prices_enabled?: boolean;
+  voucher_codes_enabled?: boolean;
+  subtotal_eur?: number;
+  credit_applied_eur?: number;
+  total_due_eur?: number;
+  remaining_credit_eur?: number;
 }
 
 @Component({
@@ -61,13 +81,18 @@ export class Shop implements OnInit, OnDestroy {
 
   loading = signal(true);
   ordering = signal(false);
+  redeeming = signal(false);
 
   search = signal('');
   typeFilter = signal<'all' | ItemType>('all');
   orderComment = signal('');
+  voucherCode = signal('');
 
   items = signal<Item[]>([]);
   cart = signal<CartLine[]>([]);
+  pricesEnabled = signal(false);
+  voucherCodesEnabled = signal(false);
+  userCreditEur = signal(0);
 
   visibleItems = computed(() => {
     const search = this.search().trim().toLowerCase();
@@ -84,9 +109,29 @@ export class Shop implements OnInit, OnDestroy {
   });
 
   cartCount = computed(() => this.cart().reduce((sum, line) => sum + line.quantity, 0));
+  cartSubtotalEur = computed(() => {
+    return this.cart().reduce((sum, line) => sum + this.lineTotalEur(line), 0);
+  });
+
+  cartCreditAppliedPreviewEur = computed(() => {
+    if (!this.pricesEnabled() || !this.voucherCodesEnabled()) return 0;
+    return Math.min(this.userCreditEur(), this.cartSubtotalEur());
+  });
+
+  cartDuePreviewEur = computed(() => {
+    if (!this.pricesEnabled()) return 0;
+    return Math.max(0, this.cartSubtotalEur() - this.cartCreditAppliedPreviewEur());
+  });
+  canCheckoutWithCredit = computed(() => {
+    if (!this.pricesEnabled() || !this.voucherCodesEnabled()) return true;
+    return this.cartDuePreviewEur() <= 0.000001;
+  });
+
   private availabilityTimerId: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit(): void {
+    this.loadShopConfig();
+    this.loadBalance();
     this.reload();
     this.availabilityTimerId = setInterval(() => {
       this.reload(false);
@@ -133,6 +178,10 @@ export class Shop implements OnInit, OnDestroy {
 
   setOrderComment(value: string): void {
     this.orderComment.set(value);
+  }
+
+  setVoucherCode(value: string): void {
+    this.voucherCode.set(value);
   }
 
   addToCart(item: Item): void {
@@ -246,16 +295,24 @@ export class Shop implements OnInit, OnDestroy {
       const value = answers[attr.key];
       if (attr.input_type !== 'boolean' && typeof value !== 'string') continue;
       if (attr.input_type !== 'boolean' && value.trim().length === 0) continue;
+      const label = String(attr.label || attr.key || '').trim();
+      if (!label) continue;
+      const renderedValue = this.stringifyAnswer(value).trim();
+      if (!renderedValue) continue;
 
       entries.push({
-        label: attr.label || attr.key,
-        value: this.stringifyAnswer(value),
+        label,
+        value: renderedValue,
       });
     }
 
     for (const key of Object.keys(answers)) {
       if (orderAttributes.some((attr) => attr.key === key)) continue;
-      entries.push({ label: key, value: this.stringifyAnswer(answers[key]) });
+      const label = String(key || '').trim();
+      if (!label) continue;
+      const renderedValue = this.stringifyAnswer(answers[key]).trim();
+      if (!renderedValue) continue;
+      entries.push({ label, value: renderedValue });
     }
 
     return entries;
@@ -268,6 +325,10 @@ export class Shop implements OnInit, OnDestroy {
     }
 
     if (!this.ensureCartWithinStock()) {
+      return;
+    }
+    if (!this.canCheckoutWithCredit()) {
+      this.snackBar.open('Nicht genug Guthaben für diese Bestellung.', 'OK', { duration: 2800 });
       return;
     }
 
@@ -291,9 +352,41 @@ export class Shop implements OnInit, OnDestroy {
 
       this.cart.set([]);
       this.orderComment.set('');
+      const payment = (res?.payment || {}) as CheckoutPayment;
+      if (typeof payment.remaining_credit_eur === 'number' && Number.isFinite(payment.remaining_credit_eur)) {
+        this.userCreditEur.set(this.roundMoney(payment.remaining_credit_eur));
+      }
       const printMessage = String(res?.print?.message || '').trim();
-      const message = printMessage ? `Bestellung wurde ausgelöst. ${printMessage}` : 'Bestellung wurde ausgelöst.';
+      let message = printMessage ? `Bestellung wurde ausgelöst. ${printMessage}` : 'Bestellung wurde ausgelöst.';
+      if (this.pricesEnabled() && typeof payment.total_due_eur === 'number') {
+        message += ` Offen: ${this.formatPrice(payment.total_due_eur)}.`;
+      }
       this.snackBar.open(message, 'OK', { duration: 3200 });
+    });
+  }
+
+  redeemVoucherCode(): void {
+    const rawCode = this.voucherCode().trim();
+    if (!rawCode) {
+      this.snackBar.open('Bitte Gutschein-Code eingeben.', 'OK', { duration: 2200 });
+      return;
+    }
+
+    this.redeeming.set(true);
+    this.api.post('/api/voucher-codes/redeem/', this.auth.token(), { code: rawCode }).subscribe((res: any) => {
+      this.redeeming.set(false);
+
+      if (this.isApiError(res)) {
+        this.snackBar.open('Gutschein konnte nicht eingelöst werden.', 'OK', { duration: 2800 });
+        return;
+      }
+
+      const newBalance = Number(res?.balance_eur ?? 0);
+      this.userCreditEur.set(this.roundMoney(newBalance));
+      this.voucherCode.set('');
+      this.snackBar.open(`Gutschein eingelöst. Guthaben: ${this.formatPrice(this.userCreditEur())}`, 'OK', {
+        duration: 3000,
+      });
     });
   }
 
@@ -309,8 +402,61 @@ export class Shop implements OnInit, OnDestroy {
     return Math.max(0, count - 1);
   }
 
+  lineTotalEur(line: CartLine): number {
+    const unitPrice = this.itemPriceEur(line.item);
+    return this.roundMoney(unitPrice * line.quantity);
+  }
+
+  itemPriceEur(item: Item): number {
+    const value = Number(item.price_eur ?? 0);
+    if (!Number.isFinite(value) || value < 0) {
+      return 0;
+    }
+    return this.roundMoney(value);
+  }
+
+  formatPrice(value: number): string {
+    const rounded = this.roundMoney(value);
+    return `${rounded.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
+  }
+
+  private loadShopConfig(): void {
+    this.api.get('/api/orders/shop-config/', this.auth.token()).subscribe((res: any) => {
+      if (this.isApiError(res)) {
+        this.pricesEnabled.set(false);
+        this.voucherCodesEnabled.set(false);
+        return;
+      }
+
+      const config = (res || {}) as ShopConfigResponse;
+      this.pricesEnabled.set(Boolean(config.prices_enabled));
+      this.voucherCodesEnabled.set(Boolean(config.voucher_codes_enabled));
+    });
+  }
+
+  private loadBalance(): void {
+    this.api.get('/api/voucher-codes/me/balance/', this.auth.token()).subscribe((res: any) => {
+      if (this.isApiError(res)) {
+        this.userCreditEur.set(0);
+        return;
+      }
+
+      const balance = (res || {}) as BalanceResponse;
+      if (typeof balance.vouchers_enabled === 'boolean') {
+        this.voucherCodesEnabled.set(balance.vouchers_enabled);
+      }
+      const value = Number(balance.balance_eur ?? 0);
+      this.userCreditEur.set(this.roundMoney(value));
+    });
+  }
+
   private isApiError(response: any): boolean {
     return Array.isArray(response) && response.length > 0 && response[0]?.error_code !== undefined;
+  }
+
+  private roundMoney(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    return Math.round(value * 100) / 100;
   }
 
   private upsertCartLine(item: Item, orderAnswers: Record<string, any>, quantityDelta: number): void {
@@ -396,7 +542,10 @@ export class Shop implements OnInit, OnDestroy {
     if (typeof value === 'boolean') {
       return value ? 'Ja' : 'Nein';
     }
-    return String(value);
+    if (value === null || value === undefined) {
+      return '';
+    }
+    return String(value).trim();
   }
 
   private canIncreaseForItem(item: Item, quantityDelta: number): boolean {

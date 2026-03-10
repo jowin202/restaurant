@@ -1,0 +1,72 @@
+<div class="page">
+  <mat-card class="codes-card">
+    <div class="header-row">
+      <h2>Gutschein Codes</h2>
+      <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading() || generating()">
+        Aktualisieren
+      </button>
+    </div>
+
+    @if (!vouchersEnabled()) {
+      <div class="disabled-box">
+        Gutschein-Codes sind in den Einstellungen deaktiviert.
+        @if (auth.admin_level() > 1) {
+          <a routerLink="/settings">Zu den Einstellungen</a>
+        }
+      </div>
+    }
+
+    @if (vouchersEnabled()) {
+      <div class="generate-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Betrag (EUR)</mat-label>
+          <input matInput [value]="amountEur()" (input)="setAmountEur($any($event.target).value)" placeholder="z. B. 20" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Ablaufdatum</mat-label>
+          <input matInput type="datetime-local" [value]="expiresAt()" (input)="setExpiresAt($any($event.target).value)" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Anzahl</mat-label>
+          <input matInput type="number" min="1" max="100" [value]="codeCount()" (input)="setCodeCount($any($event.target).value)" />
+        </mat-form-field>
+
+        <button mat-flat-button color="primary" type="button" (click)="generate()" [disabled]="generating()">
+          Codes generieren
+        </button>
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="loading">Lade Daten...</div>
+    }
+
+    @if (!loading() && items().length === 0) {
+      <div class="loading">Keine Gutschein-Codes vorhanden.</div>
+    }
+
+    @if (!loading() && items().length > 0) {
+      <div class="codes-list">
+        @for (row of items(); track row.id) {
+          <div class="code-row">
+            <div class="code-main">
+              <strong>{{ row.code }}</strong>
+              <span class="status" [class.status-active]="row.status === 'active'">{{ statusLabel(row.status) }}</span>
+            </div>
+            <div class="code-meta">
+              <span>Betrag: {{ formatPrice(row.amount_eur) }}</span>
+              <span>Ablauf: {{ formatDate(row.expires_at) }}</span>
+              <span>Erstellt: {{ formatDate(row.created_at) }}</span>
+              <span>Erstellt von: {{ row.created_by_name || '-' }}</span>
+              @if (row.redeemed_at) {
+                <span>Eingelöst: {{ formatDate(row.redeemed_at) }} von {{ row.redeemed_by_name || '-' }}</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </mat-card>
+</div>

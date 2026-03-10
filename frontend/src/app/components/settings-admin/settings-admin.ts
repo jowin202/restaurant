@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
@@ -18,6 +19,8 @@ const SETTINGS_KEYS = [
   'label_printer_height_mm',
   'label_printer_dpi',
   'guest_qr_invite_text',
+  'prices_enabled',
+  'voucher_codes_enabled',
 ] as const;
 
 const DEFAULT_INVITE_TEXT = 'Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen.';
@@ -31,6 +34,7 @@ const DEFAULT_INVITE_TEXT = 'Lieber [Name], Bitte scanne den QR Code ab um zu un
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatSlideToggleModule,
     MatButtonModule,
     MatSnackBarModule
 ],
@@ -70,6 +74,8 @@ export class SettingsAdmin implements OnInit {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(500)],
     }),
+    prices_enabled: new FormControl(false, { nonNullable: true }),
+    voucher_codes_enabled: new FormControl(false, { nonNullable: true }),
   });
 
   previewText = computed(() => {
@@ -102,6 +108,8 @@ export class SettingsAdmin implements OnInit {
         label_printer_height_mm: String(values['label_printer_height_mm'] || ''),
         label_printer_dpi: labelPrinterDpi === '300' ? '300' : '203',
         guest_qr_invite_text: String(values['guest_qr_invite_text'] || DEFAULT_INVITE_TEXT),
+        prices_enabled: this.toBool(values['prices_enabled']),
+        voucher_codes_enabled: this.toBool(values['voucher_codes_enabled']),
       });
     });
   }
@@ -120,6 +128,8 @@ export class SettingsAdmin implements OnInit {
       label_printer_height_mm: String(this.form.controls.label_printer_height_mm.value ?? '').trim(),
       label_printer_dpi: Number(this.form.controls.label_printer_dpi.value),
       guest_qr_invite_text: this.form.controls.guest_qr_invite_text.value.trim(),
+      prices_enabled: this.form.controls.prices_enabled.value,
+      voucher_codes_enabled: this.form.controls.voucher_codes_enabled.value,
     };
 
     this.saving.set(true);
@@ -141,5 +151,15 @@ export class SettingsAdmin implements OnInit {
 
   private isApiError(response: any): boolean {
     return Array.isArray(response) && response.length > 0 && response[0]?.error_code !== undefined;
+  }
+
+  private toBool(value: any): boolean {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const lowered = value.trim().toLowerCase();
+      return lowered === '1' || lowered === 'true' || lowered === 'yes' || lowered === 'on' || lowered === 'ja';
+    }
+    return false;
   }
 }

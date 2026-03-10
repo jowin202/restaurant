@@ -11,7 +11,18 @@ interface OrderLinePreview {
   name: string;
   ordered_quantity: number;
   unit: string | null;
+  unit_price_eur?: number | null;
+  line_total_eur?: number | null;
   order_answers: Record<string, any>;
+}
+
+interface OrderPaymentPreview {
+  prices_enabled?: boolean;
+  voucher_codes_enabled?: boolean;
+  subtotal_eur?: number;
+  credit_applied_eur?: number;
+  total_due_eur?: number;
+  remaining_credit_eur?: number;
 }
 
 interface AdminOrder {
@@ -25,6 +36,7 @@ interface AdminOrder {
   created_at: string;
   item_count: number;
   total_quantity: number;
+  payment?: OrderPaymentPreview;
   items: OrderLinePreview[];
 }
 
@@ -116,13 +128,33 @@ export class OrdersAdmin implements OnInit {
         continue;
       }
 
+      const label = String(key || '').trim();
+      if (!label) {
+        continue;
+      }
+
+      const renderedValue = this.stringifyAnswer(rawValue).trim();
+      if (!renderedValue) {
+        continue;
+      }
+
       entries.push({
-        label: key,
-        value: this.stringifyAnswer(rawValue),
+        label,
+        value: renderedValue,
       });
     }
 
     return entries;
+  }
+
+  showPrices(order: AdminOrder): boolean {
+    return Boolean(order.payment?.prices_enabled);
+  }
+
+  formatPrice(value: number | null | undefined): string {
+    const numeric = Number(value ?? 0);
+    const rounded = Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
+    return `${rounded.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
   }
 
   private isApiError(response: any): boolean {
@@ -135,7 +167,7 @@ export class OrdersAdmin implements OnInit {
     }
 
     if (value === null || value === undefined) {
-      return '-';
+      return '';
     }
 
     if (typeof value === 'object') {
@@ -146,6 +178,6 @@ export class OrdersAdmin implements OnInit {
       }
     }
 
-    return String(value);
+    return String(value).trim();
   }
 }

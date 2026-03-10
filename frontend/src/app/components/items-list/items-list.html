@@ -66,6 +66,9 @@
                 <span>{{ item.quantity }} {{ item.unit || '' }}</span>
               }
             </div>
+            <div class="meta">
+              <span>Preis: {{ formatPrice(item.price_eur) }}</span>
+            </div>
             @if (item.ean) {
               <div class="meta">
                 <span>EAN: {{ item.ean }}</span>

@@ -33,6 +33,7 @@ interface Item {
   name: string;
   item_type: ItemType;
   description_html?: string | null;
+  price_eur?: number | null;
   order_attributes?: Array<{
     key: string;
     label: string;
@@ -128,6 +129,7 @@ export class ItemCreate implements OnDestroy {
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     item_type: new FormControl<ItemType>('essen', { nonNullable: true }),
     description_html: new FormControl<string>(''),
+    price_eur: new FormControl<number | null>(null),
     quantity: new FormControl<number | null>(null),
     unit: new FormControl<string>(''),
     ean: new FormControl<string>(''),
@@ -623,6 +625,7 @@ export class ItemCreate implements OnDestroy {
       name: '',
       item_type: 'essen',
       description_html: '',
+      price_eur: null,
       quantity: null,
       unit: '',
       ean: '',
@@ -698,17 +701,36 @@ export class ItemCreate implements OnDestroy {
     }
 
     const ean = (this.form.controls.ean.value || '').trim();
+    const priceValue = this.parsePrice(this.form.controls.price_eur.value);
+    if (priceValue === undefined) {
+      this.snackBar.open('Preis muss eine positive Zahl sein.', 'OK', { duration: 2600 });
+      return null;
+    }
 
     return {
       name: this.form.controls.name.value.trim(),
       item_type: this.form.controls.item_type.value,
       description_html: this.normalizeDescriptionHtml(this.form.controls.description_html.value),
       order_attributes: orderAttributes,
+      price_eur: priceValue,
       quantity: this.form.controls.quantity.value,
       unit: (this.form.controls.unit.value || '').trim() || null,
       ean: ean || null,
       metadata_source: this.metadataSource() || null,
     };
+  }
+
+  private parsePrice(value: number | null): number | null | undefined {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return undefined;
+    }
+
+    return Math.round(parsed * 100) / 100;
   }
 
   private normalizeDescriptionHtml(value: string | null | undefined): string | null {

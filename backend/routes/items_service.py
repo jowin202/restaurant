@@ -29,6 +29,7 @@ def to_item_out(doc: Dict[str, Any], include_image_data: bool) -> Dict[str, Any]
         "item_type": doc.get("item_type", "essen"),
         "description_html": doc.get("description_html"),
         "order_attributes": doc.get("order_attributes", []),
+        "price_eur": doc.get("price_eur"),
         "quantity": doc.get("quantity"),
         "unit": doc.get("unit"),
         "ean": doc.get("ean"),

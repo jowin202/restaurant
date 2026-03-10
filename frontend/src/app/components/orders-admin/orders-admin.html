@@ -29,6 +29,22 @@
               <span>{{ order.item_count }} Positionen</span>
               <span>Menge gesamt: {{ order.total_quantity }}</span>
             </div>
+            @if (showPrices(order)) {
+              <div class="order-payment">
+                <div>
+                  <span>Zwischensumme</span>
+                  <strong>{{ formatPrice(order.payment?.subtotal_eur) }}</strong>
+                </div>
+                <div>
+                  <span>Guthaben</span>
+                  <strong>-{{ formatPrice(order.payment?.credit_applied_eur) }}</strong>
+                </div>
+                <div>
+                  <span>Offen</span>
+                  <strong>{{ formatPrice(order.payment?.total_due_eur) }}</strong>
+                </div>
+              </div>
+            }
             @if ((order.comment || '').trim().length > 0) {
               <div class="order-comment">
                 <strong>Kommentar:</strong>
@@ -43,9 +59,15 @@
                       <span class="line-name">{{ line.name }}</span>
                       <strong>{{ line.ordered_quantity }} {{ line.unit || '' }}</strong>
                     </div>
+                    @if (showPrices(order)) {
+                      <div class="order-line-main line-price">
+                        <span>{{ formatPrice(line.unit_price_eur) }}</span>
+                        <strong>{{ formatPrice(line.line_total_eur) }}</strong>
+                      </div>
+                    }
                     @if (lineAnswerEntries(line).length > 0) {
                       <div class="order-line-answers">
-                        @for (entry of lineAnswerEntries(line); track entry) {
+                        @for (entry of lineAnswerEntries(line); track entry.label + ':' + entry.value) {
                           <span class="answer-chip">
                             {{ entry.label }}: {{ entry.value }}
                           </span>

@@ -78,6 +78,23 @@
   font-size: 0.84rem;
 }
 
+.order-payment {
+  border: 1px solid #d8e6ff;
+  background: #f4f8ff;
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.order-payment > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
 .order-comment {
   display: grid;
   gap: 3px;
@@ -111,6 +128,11 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
+}
+
+.line-price {
+  color: #415a7a;
+  font-size: 0.8rem;
 }
 
 .line-name {

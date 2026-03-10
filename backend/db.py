@@ -70,6 +70,11 @@ async def db_init() -> None:
     )
     await db.orders.create_index("created_at")
     await db.orders.create_index("user_id")
+    await db.voucher_codes.create_index("code_raw", unique=True)
+    await db.voucher_codes.create_index("expires_at")
+    await db.voucher_codes.create_index("redeemed_by_user_id")
+    await db.credit_transactions.create_index("user_id")
+    await db.credit_transactions.create_index("created_at")
 
     admin_user = await db.users.find_one({"username_normalized": normalize_username("admin")})
     if not admin_user:
@@ -94,6 +99,8 @@ async def db_init() -> None:
         "label_printer_height_mm": "",
         "label_printer_dpi": 203,
         "guest_qr_invite_text": "Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen.",
+        "prices_enabled": False,
+        "voucher_codes_enabled": False,
     }
     for key, value in default_settings.items():
         await db.settings.update_one(
@@ -109,6 +116,8 @@ async def db_remove() -> None:
     await db.items.drop()
     await db.orders.drop()
     await db.settings.drop()
+    await db.voucher_codes.drop()
+    await db.credit_transactions.drop()
     await db.counters.drop()
 
 

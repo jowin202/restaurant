@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from pymongo import ReturnDocument
 
 from db import get_db
 from settingsmgr import SettingsManager
@@ -16,6 +17,34 @@ settings_manager = SettingsManager()
 RECEIPT_LINE_WIDTH = 42
 RECEIPT_PORT = 9100
 RECEIPT_TIMEOUT_SECONDS = 2.5
+
+
+def _setting_enabled(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        return lowered in {"1", "true", "yes", "on", "ja"}
+    return False
+
+
+def _to_money_cents(value: Any) -> int:
+    if not _is_numeric(value):
+        return 0
+    amount = round(float(value) * 100)
+    return max(0, int(amount))
+
+
+def _from_money_cents(value: int) -> float:
+    return round(max(0, int(value)) / 100.0, 2)
+
+
+def _format_money_eur(value: Any) -> str:
+    if not _is_numeric(value):
+        return "0,00 EUR"
+    return f"{float(value):.2f}".replace(".", ",") + " EUR"
 
 
 class OrderItem(BaseModel):
@@ -63,7 +92,12 @@ def _wrap_receipt_text(text: str, width: int = RECEIPT_LINE_WIDTH) -> List[str]:
     return lines
 
 
-def _build_escpos_order_payload(order_document: Dict[str, Any], order_id: str, mode: str) -> bytes:
+def _build_escpos_order_payload(
+    order_document: Dict[str, Any],
+    order_id: str,
+    mode: str,
+    show_prices: bool,
+) -> bytes:
     created_at = order_document.get("created_at")
     if isinstance(created_at, datetime):
         created_text = created_at.astimezone().strftime("%d.%m.%Y %H:%M")
@@ -74,6 +108,7 @@ def _build_escpos_order_payload(order_document: Dict[str, Any], order_id: str, m
     comment = str(order_document.get("comment") or "").strip()
     items = order_document.get("items")
     safe_items = items if isinstance(items, list) else []
+    payment = order_document.get("payment") if isinstance(order_document.get("payment"), dict) else {}
 
     body_lines: List[str] = []
     body_lines.append(f"Bestellung #{order_id[-8:]}")
@@ -87,11 +122,18 @@ def _build_escpos_order_payload(order_document: Dict[str, Any], order_id: str, m
         name = str(line.get("name") or "Artikel")
         qty = _format_quantity(line.get("ordered_quantity"))
         unit = str(line.get("unit") or "").strip()
+        unit_price_eur = line.get("unit_price_eur")
+        line_total_eur = line.get("line_total_eur")
 
         for name_line in _wrap_receipt_text(f"{idx}. {name}"):
             body_lines.append(name_line)
         qty_line = f"   Menge: {qty} {unit}".strip()
         body_lines.append(qty_line)
+        if show_prices:
+            if _is_numeric(unit_price_eur):
+                body_lines.append(f"   Einzelpreis: {_format_money_eur(unit_price_eur)}")
+            if _is_numeric(line_total_eur):
+                body_lines.append(f"   Position: {_format_money_eur(line_total_eur)}")
 
         raw_answers = line.get("order_answers")
         answers = raw_answers if isinstance(raw_answers, dict) else {}
@@ -106,6 +148,18 @@ def _build_escpos_order_payload(order_document: Dict[str, Any], order_id: str, m
         body_lines.append("Kommentar:")
         for c_line in _wrap_receipt_text(comment):
             body_lines.append(c_line)
+        body_lines.append("")
+
+    if show_prices and payment:
+        subtotal_eur = payment.get("subtotal_eur")
+        credit_applied_eur = payment.get("credit_applied_eur")
+        total_due_eur = payment.get("total_due_eur")
+        if _is_numeric(subtotal_eur):
+            body_lines.append(f"Zwischensumme: {_format_money_eur(subtotal_eur)}")
+        if _is_numeric(credit_applied_eur) and float(credit_applied_eur) > 0:
+            body_lines.append(f"Guthaben: -{_format_money_eur(credit_applied_eur)}")
+        if _is_numeric(total_due_eur):
+            body_lines.append(f"Offen: {_format_money_eur(total_due_eur)}")
         body_lines.append("")
 
     body_lines.append("-" * RECEIPT_LINE_WIDTH)
@@ -163,12 +217,18 @@ async def _attempt_order_print(
     mode: str,
 ) -> Dict[str, Any]:
     printer_ip = _get_receipt_printer_ip()
+    show_prices = _setting_enabled(settings_manager.get_setting("prices_enabled"))
     now = datetime.now(timezone.utc)
 
     status = "printer_not_configured"
     error = ""
     if printer_ip:
-        payload = _build_escpos_order_payload(order_document, order_id=order_id, mode=mode)
+        payload = _build_escpos_order_payload(
+            order_document,
+            order_id=order_id,
+            mode=mode,
+            show_prices=show_prices,
+        )
         print_error = await _try_print_escpos(printer_ip, payload)
         if print_error:
             status = "printer_offline"
@@ -353,6 +413,14 @@ def _validate_order_answers(
     return answers
 
 
+@router.get('/shop-config/')
+async def get_shop_config():
+    return {
+        'prices_enabled': _setting_enabled(settings_manager.get_setting('prices_enabled')),
+        'voucher_codes_enabled': _setting_enabled(settings_manager.get_setting('voucher_codes_enabled')),
+    }
+
+
 @router.post('/checkout/')
 async def checkout(data: CheckoutOrder, request: Request):
     if getattr(request.state, 'admin', 0) != 0:
@@ -388,7 +456,7 @@ async def checkout(data: CheckoutOrder, request: Request):
 
     db_items = await db.items.find(
         {'_id': {'$in': object_ids}},
-        {'name': 1, 'item_type': 1, 'ean': 1, 'unit': 1, 'quantity': 1, 'order_attributes': 1},
+        {'name': 1, 'item_type': 1, 'ean': 1, 'unit': 1, 'quantity': 1, 'order_attributes': 1, 'price_eur': 1},
     ).to_list(length=len(object_ids))
 
     if len(db_items) != len(object_ids):
@@ -432,12 +500,17 @@ async def checkout(data: CheckoutOrder, request: Request):
             'ean': doc.get('ean'),
             'name': doc.get('name'),
             'item_type': doc.get('item_type'),
+            'price_eur': doc.get('price_eur'),
             'unit': doc.get('unit'),
             'available_quantity_before': available_quantity,
             'order_attributes': _normalize_order_attributes(doc.get('order_attributes')),
         }
 
+    prices_enabled = _setting_enabled(settings_manager.get_setting('prices_enabled'))
+    voucher_codes_enabled = _setting_enabled(settings_manager.get_setting('voucher_codes_enabled'))
+
     order_lines: List[Dict[str, Any]] = []
+    subtotal_cents = 0
     for line in incoming_lines:
         line_item_id = line['item_id']
         line_meta = item_meta_by_id[line_item_id]
@@ -447,19 +520,26 @@ async def checkout(data: CheckoutOrder, request: Request):
             raw_answers=line.get('order_answers', {}),
         )
 
-        order_lines.append(
-            {
-                'item_id': line_item_id,
-                'ean': line_meta.get('ean'),
-                'name': line_meta.get('name'),
-                'item_type': line_meta.get('item_type'),
-                'ordered_quantity': line['quantity'],
-                'unit': line_meta.get('unit'),
-                'available_quantity_before': line_meta.get('available_quantity_before'),
-                'order_attributes': line_meta['order_attributes'],
-                'order_answers': validated_answers,
-            }
-        )
+        order_line = {
+            'item_id': line_item_id,
+            'ean': line_meta.get('ean'),
+            'name': line_meta.get('name'),
+            'item_type': line_meta.get('item_type'),
+            'ordered_quantity': line['quantity'],
+            'unit': line_meta.get('unit'),
+            'available_quantity_before': line_meta.get('available_quantity_before'),
+            'order_attributes': line_meta['order_attributes'],
+            'order_answers': validated_answers,
+        }
+
+        if prices_enabled:
+            unit_price_eur = round(float(line_meta.get('price_eur') or 0), 2)
+            line_total_eur = round(unit_price_eur * float(line['quantity']), 2)
+            subtotal_cents += _to_money_cents(line_total_eur)
+            order_line['unit_price_eur'] = unit_price_eur
+            order_line['line_total_eur'] = line_total_eur
+
+        order_lines.append(order_line)
 
     now = datetime.now(timezone.utc)
 
@@ -469,11 +549,75 @@ async def checkout(data: CheckoutOrder, request: Request):
             {'$set': {'quantity': update['new_quantity'], 'updated_at': now}},
         )
 
+    credit_applied_cents = 0
+    remaining_credit_cents = 0
+    if prices_enabled and voucher_codes_enabled and subtotal_cents > 0:
+        user_doc = await db.users.find_one({'id': request.state.user_id}, {'_id': 0, 'credit_balance_cents': 1})
+        user_credit_cents = max(0, int((user_doc or {}).get('credit_balance_cents') or 0))
+
+        if user_credit_cents < subtotal_cents:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Nicht genug Guthaben. Verfügbar: {_from_money_cents(user_credit_cents):.2f} EUR, "
+                    f"benötigt: {_from_money_cents(subtotal_cents):.2f} EUR."
+                ),
+            )
+
+        credit_applied_cents = subtotal_cents
+        updated_user = await db.users.find_one_and_update(
+            {
+                'id': request.state.user_id,
+                'credit_balance_cents': {'$gte': credit_applied_cents},
+            },
+            {'$inc': {'credit_balance_cents': -credit_applied_cents}},
+            return_document=ReturnDocument.AFTER,
+            projection={'_id': 0, 'credit_balance_cents': 1},
+        )
+        if not updated_user:
+            latest_user = await db.users.find_one({'id': request.state.user_id}, {'_id': 0, 'credit_balance_cents': 1})
+            latest_credit_cents = max(0, int((latest_user or {}).get('credit_balance_cents') or 0))
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Guthaben hat sich geändert. Verfügbar: {_from_money_cents(latest_credit_cents):.2f} EUR, "
+                    f"benötigt: {_from_money_cents(subtotal_cents):.2f} EUR."
+                ),
+            )
+
+        remaining_credit_cents = max(0, int(updated_user.get('credit_balance_cents') or 0))
+        await db.credit_transactions.insert_one(
+            {
+                'user_id': request.state.user_id,
+                'type': 'order_credit_applied',
+                'amount_cents': -credit_applied_cents,
+                'created_at': now,
+                'meta': {'line_count': len(order_lines)},
+            }
+        )
+    else:
+        user_doc = await db.users.find_one({'id': request.state.user_id}, {'_id': 0, 'credit_balance_cents': 1})
+        remaining_credit_cents = max(0, int((user_doc or {}).get('credit_balance_cents') or 0))
+
+    subtotal_eur = _from_money_cents(subtotal_cents)
+    credit_applied_eur = _from_money_cents(credit_applied_cents)
+    total_due_eur = _from_money_cents(max(0, subtotal_cents - credit_applied_cents))
+
+    payment_snapshot = {
+        'prices_enabled': prices_enabled,
+        'voucher_codes_enabled': voucher_codes_enabled,
+        'subtotal_eur': subtotal_eur,
+        'credit_applied_eur': credit_applied_eur,
+        'total_due_eur': total_due_eur,
+        'remaining_credit_eur': _from_money_cents(remaining_credit_cents),
+    }
+
     order_document = {
         'user_id': request.state.user_id,
         'user_name': request.state.name,
         'items': order_lines,
         'comment': data.comment,
+        'payment': payment_snapshot,
         'status': 'pending_integration',
         'print_status': 'pending',
         'created_at': now,
@@ -494,6 +638,7 @@ async def checkout(data: CheckoutOrder, request: Request):
     return {
         'status': 'accepted',
         'order_id': order_id,
+        'payment': payment_snapshot,
         'trigger': trigger_result,
         'print': print_result,
         'stock_updated_items': len(stock_updates),
@@ -505,6 +650,8 @@ def _serialize_order_line(line: Dict[str, Any]) -> Dict[str, Any]:
         'name': line.get('name'),
         'ordered_quantity': line.get('ordered_quantity'),
         'unit': line.get('unit'),
+        'unit_price_eur': line.get('unit_price_eur'),
+        'line_total_eur': line.get('line_total_eur'),
         'order_answers': line.get('order_answers', {}),
     }
 
@@ -533,6 +680,7 @@ def _serialize_order_for_admin(doc: Dict[str, Any]) -> Dict[str, Any]:
         'created_at': created_at_iso,
         'item_count': len(items),
         'total_quantity': round(total_quantity, 3),
+        'payment': doc.get('payment', {}),
         'items': [_serialize_order_line(line) for line in items if isinstance(line, dict)],
     }
 
@@ -553,6 +701,7 @@ async def list_orders(request: Request, limit: int = Query(default=40, ge=1, le=
             'print_error': 1,
             'comment': 1,
             'created_at': 1,
+            'payment': 1,
             'items': 1,
         },
     ).sort('created_at', -1).limit(limit).to_list(length=limit)
@@ -593,7 +742,7 @@ async def prepare_print(order_id: str, request: Request):
     order_oid = ObjectId(order_id)
     order = await db.orders.find_one(
         {'_id': order_oid},
-        {'_id': 1, 'user_name': 1, 'comment': 1, 'created_at': 1, 'items': 1},
+        {'_id': 1, 'user_name': 1, 'comment': 1, 'created_at': 1, 'items': 1, 'payment': 1},
     )
     if not order:
         raise HTTPException(status_code=404, detail='Bestellung nicht gefunden')

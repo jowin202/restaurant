@@ -22,6 +22,7 @@
       <a mat-list-item routerLink="/items/new" (click)="closeOnMobile()">Neues Item anlegen</a>
       <a mat-list-item routerLink="/inventory" (click)="closeOnMobile()">Inventur</a>
       <a mat-list-item routerLink="/orders" (click)="closeOnMobile()">Bestellungen</a>
+      <a mat-list-item routerLink="/voucher-codes" (click)="closeOnMobile()">Gutschein Codes</a>
       }
 
       @if(this.auth.admin_level() > 1)

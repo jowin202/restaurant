@@ -42,6 +42,9 @@
                 </div>
               }
               <h3>{{ item.name }}</h3>
+              @if (pricesEnabled()) {
+                <div class="price">{{ formatPrice(itemPriceEur(item)) }}</div>
+              }
               @if (item.description_html) {
                 <div class="description-html" [innerHTML]="item.description_html"></div>
               }
@@ -72,7 +75,7 @@
                 <strong>{{ line.item.name }}</strong>
                 @if (lineAnswerEntries(line).length > 0) {
                   <div class="line-answers">
-                    @for (entry of lineAnswerEntries(line); track entry) {
+                    @for (entry of lineAnswerEntries(line); track entry.label + ':' + entry.value) {
                       <div class="answer-chip">
                         {{ entry.label }}: {{ entry.value }}
                       </div>
@@ -96,7 +99,59 @@
                 <button mat-icon-button color="warn" (click)="remove(line)"><mat-icon>delete</mat-icon></button>
               </div>
             </div>
+            @if (pricesEnabled()) {
+              <div class="line-price">
+                <span>{{ line.quantity }} x {{ formatPrice(itemPriceEur(line.item)) }}</span>
+                <strong>{{ formatPrice(lineTotalEur(line)) }}</strong>
+              </div>
+            }
           }
+        </div>
+      }
+
+      @if (pricesEnabled()) {
+        <div class="price-summary">
+          <div class="summary-line">
+            <span>Zwischensumme</span>
+            <strong>{{ formatPrice(cartSubtotalEur()) }}</strong>
+          </div>
+          @if (voucherCodesEnabled()) {
+            <div class="summary-line">
+              <span>Guthaben</span>
+              <strong>-{{ formatPrice(cartCreditAppliedPreviewEur()) }}</strong>
+            </div>
+            <div class="summary-line total">
+              <span>Offen</span>
+              <strong>{{ formatPrice(cartDuePreviewEur()) }}</strong>
+            </div>
+          }
+        </div>
+      }
+
+      @if (voucherCodesEnabled()) {
+        <div class="voucher-box">
+          <div class="voucher-head">
+            <strong>Guthaben</strong>
+            <span>{{ formatPrice(userCreditEur()) }}</span>
+          </div>
+          <mat-form-field appearance="outline">
+            <mat-label>Gutschein-Code</mat-label>
+            <input
+              matInput
+              [value]="voucherCode()"
+              (input)="setVoucherCode($any($event.target).value)"
+              placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+            />
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="redeemVoucherCode()" [disabled]="redeeming()">
+            Code einlösen
+          </button>
+        </div>
+      }
+
+      @if (pricesEnabled() && voucherCodesEnabled() && cart().length > 0 && !canCheckoutWithCredit()) {
+        <div class="voucher-warning">
+          Nicht genug Guthaben für diese Bestellung.
         </div>
       }
 
@@ -111,7 +166,12 @@
         ></textarea>
       </mat-form-field>
 
-      <button mat-flat-button color="accent" [disabled]="ordering() || cart().length === 0" (click)="orderNow()">
+      <button
+        mat-flat-button
+        color="accent"
+        [disabled]="ordering() || cart().length === 0 || !canCheckoutWithCredit()"
+        (click)="orderNow()"
+      >
         Bestellen
       </button>
     </mat-card>

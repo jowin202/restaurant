@@ -53,6 +53,14 @@
           <div class="preview-title">Vorschau</div>
           <p>{{ previewText() }}</p>
         </div>
+        <div class="feature-toggles">
+          <mat-slide-toggle formControlName="prices_enabled">
+            Preise im Shop und auf Bons anzeigen
+          </mat-slide-toggle>
+          <mat-slide-toggle formControlName="voucher_codes_enabled">
+            Gutschein-Codes aktivieren
+          </mat-slide-toggle>
+        </div>
         <div class="actions">
           <button mat-flat-button color="primary" type="submit" [disabled]="saving()">Speichern</button>
         </div>

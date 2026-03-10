@@ -17,6 +17,7 @@ class ItemBase(BaseModel):
     item_type: Literal["essen", "getränk"] = "essen"
     description_html: Optional[str] = Field(default=None, max_length=40000)
     order_attributes: List[OrderAttributeDefinition] = Field(default_factory=list)
+    price_eur: Optional[float] = Field(default=None, ge=0)
     quantity: Optional[float] = None
     unit: Optional[str] = None
     ean: Optional[str] = None
@@ -31,6 +32,7 @@ class ItemUpdate(BaseModel):
     item_type: Optional[Literal["essen", "getränk"]] = None
     description_html: Optional[str] = Field(default=None, max_length=40000)
     order_attributes: Optional[List[OrderAttributeDefinition]] = None
+    price_eur: Optional[float] = Field(default=None, ge=0)
     quantity: Optional[float] = None
     unit: Optional[str] = None
     ean: Optional[str] = None

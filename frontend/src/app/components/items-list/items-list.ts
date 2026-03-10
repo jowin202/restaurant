@@ -20,6 +20,7 @@ interface Item {
   name: string;
   item_type: ItemType;
   description_html?: string | null;
+  price_eur?: number | null;
   quantity: number | null;
   unit: string | null;
   ean?: string | null;
@@ -165,6 +166,12 @@ export class ItemsList implements OnInit {
   extraImageCount(item: Item): number {
     const count = Array.isArray(item.image_data_urls) ? item.image_data_urls.length : item.image_data_url ? 1 : 0;
     return Math.max(0, count - 1);
+  }
+
+  formatPrice(value: number | null | undefined): string {
+    const numeric = Number(value ?? 0);
+    const rounded = Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
+    return `${rounded.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
   }
 
   private stripHtml(value: string): string {

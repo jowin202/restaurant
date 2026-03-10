@@ -17,6 +17,7 @@ export const routes: Routes = [
       { path: 'items/new', canActivate: [authGuardAdmin], loadComponent: () => import('./components/item-create/item-create').then((m) => m.ItemCreate) },
       { path: 'inventory', canActivate: [authGuardAdmin], loadComponent: () => import('./components/inventory/inventory').then((m) => m.Inventory) },
       { path: 'orders', canActivate: [authGuardAdmin], loadComponent: () => import('./components/orders-admin/orders-admin').then((m) => m.OrdersAdmin) },
+      { path: 'voucher-codes', canActivate: [authGuardAdmin], loadComponent: () => import('./components/voucher-codes/voucher-codes').then((m) => m.VoucherCodes) },
       { path: 'items/:id/edit', canActivate: [authGuardAdmin], loadComponent: () => import('./components/item-edit/item-edit').then((m) => m.ItemEdit) },
       { path: 'items', redirectTo: 'items/list', pathMatch: 'full' },
       { path: 'users', canActivate: [authGuardSuperAdmin], loadComponent: () => import('./components/user-table/user-table').then((m) => m.UserTable) },
