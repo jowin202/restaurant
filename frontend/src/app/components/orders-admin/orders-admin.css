@@ -17,6 +17,18 @@
   margin-bottom: 10px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.date-field {
+  width: 220px;
+  margin-bottom: -1.2em;
+}
+
 .orders-header h2 {
   margin: 0;
 }
@@ -167,6 +179,16 @@
   .order-summary {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-field {
+    width: 100%;
+    margin-bottom: 0;
   }
 }
 

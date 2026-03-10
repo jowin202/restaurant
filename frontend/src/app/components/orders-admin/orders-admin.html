@@ -2,7 +2,21 @@
   <mat-card class="orders-card">
     <div class="orders-header">
       <h2>Bestellungen</h2>
-      <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">Aktualisieren</button>
+      <div class="header-actions">
+        <mat-form-field appearance="outline" class="date-field">
+          <mat-label>Datum</mat-label>
+          <input
+            matInput
+            [matDatepicker]="picker"
+            [value]="selectedDateForPicker()"
+            (dateChange)="onDateChanged($event.value)"
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="setToday()" [disabled]="loading()">Heute</button>
+        <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">Aktualisieren</button>
+      </div>
     </div>
 
     @if (loading()) {

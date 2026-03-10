@@ -45,6 +45,10 @@
             placeholder="Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen."
           ></textarea>
         </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Zeitzone Bestelldatum</mat-label>
+          <input matInput formControlName="display_timezone" placeholder="z. B. Europe/Vienna" />
+        </mat-form-field>
         <div class="hint-row">
           <span class="hint">Platzhalter: `[Name]`</span>
           <button mat-button type="button" (click)="resetInviteText()">Standardtext einsetzen</button>

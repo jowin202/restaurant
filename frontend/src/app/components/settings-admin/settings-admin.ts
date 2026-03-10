@@ -19,6 +19,7 @@ const SETTINGS_KEYS = [
   'label_printer_height_mm',
   'label_printer_dpi',
   'guest_qr_invite_text',
+  'display_timezone',
   'prices_enabled',
   'voucher_codes_enabled',
 ] as const;
@@ -74,6 +75,10 @@ export class SettingsAdmin implements OnInit {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(500)],
     }),
+    display_timezone: new FormControl('Europe/Vienna', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(80)],
+    }),
     prices_enabled: new FormControl(false, { nonNullable: true }),
     voucher_codes_enabled: new FormControl(false, { nonNullable: true }),
   });
@@ -108,6 +113,7 @@ export class SettingsAdmin implements OnInit {
         label_printer_height_mm: String(values['label_printer_height_mm'] || ''),
         label_printer_dpi: labelPrinterDpi === '300' ? '300' : '203',
         guest_qr_invite_text: String(values['guest_qr_invite_text'] || DEFAULT_INVITE_TEXT),
+        display_timezone: String(values['display_timezone'] || 'Europe/Vienna'),
         prices_enabled: this.toBool(values['prices_enabled']),
         voucher_codes_enabled: this.toBool(values['voucher_codes_enabled']),
       });
@@ -128,6 +134,7 @@ export class SettingsAdmin implements OnInit {
       label_printer_height_mm: String(this.form.controls.label_printer_height_mm.value ?? '').trim(),
       label_printer_dpi: Number(this.form.controls.label_printer_dpi.value),
       guest_qr_invite_text: this.form.controls.guest_qr_invite_text.value.trim(),
+      display_timezone: this.form.controls.display_timezone.value.trim() || 'Europe/Vienna',
       prices_enabled: this.form.controls.prices_enabled.value,
       voucher_codes_enabled: this.form.controls.voucher_codes_enabled.value,
     };

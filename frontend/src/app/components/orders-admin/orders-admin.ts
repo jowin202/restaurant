@@ -2,6 +2,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { ApiService } from '../../services/api.service';
@@ -43,7 +46,14 @@ interface AdminOrder {
 @Component({
   selector: 'app-orders-admin',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatSnackBarModule],
+  imports: [
+    MatCardModule,
+    MatButtonModule,
+    MatSnackBarModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatDatepickerModule,
+  ],
   templateUrl: './orders-admin.html',
   styleUrl: './orders-admin.css',
 })
@@ -54,6 +64,7 @@ export class OrdersAdmin implements OnInit {
 
   loading = signal(false);
   orders = signal<AdminOrder[]>([]);
+  selectedDate = signal(this.todayDateIso());
 
   ngOnInit(): void {
     this.reload();
@@ -61,8 +72,10 @@ export class OrdersAdmin implements OnInit {
 
   reload(): void {
     this.loading.set(true);
+    const selected = this.selectedDate().trim();
+    const dateQuery = selected ? `&date=${encodeURIComponent(selected)}` : '';
 
-    this.api.get('/api/orders/?limit=80', this.auth.token()).subscribe((ordersRes: any) => {
+    this.api.get(`/api/orders/?limit=80${dateQuery}`, this.auth.token()).subscribe((ordersRes: any) => {
       this.loading.set(false);
 
       if (this.isApiError(ordersRes)) {
@@ -73,6 +86,51 @@ export class OrdersAdmin implements OnInit {
 
       this.orders.set((ordersRes as AdminOrder[]) || []);
     });
+  }
+
+  setSelectedDate(value: string): void {
+    this.selectedDate.set(value);
+    this.reload();
+  }
+
+  selectedDateForPicker(): Date | null {
+    const raw = this.selectedDate().trim();
+    if (!raw) return null;
+    const parts = raw.split('-').map((part) => Number(part));
+    if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
+    const [year, month, day] = parts;
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  }
+
+  onDateChanged(value: any): void {
+    if (!value) {
+      this.setToday();
+      return;
+    }
+
+    let source: Date | null = null;
+    if (value instanceof Date) {
+      source = value;
+    } else if (typeof value?.toDate === 'function') {
+      source = value.toDate();
+    } else {
+      source = new Date(value);
+    }
+
+    if (!source || Number.isNaN(source.getTime())) {
+      this.setToday();
+      return;
+    }
+
+    const yyyy = source.getUTCFullYear();
+    const mm = String(source.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(source.getUTCDate()).padStart(2, '0');
+    this.setSelectedDate(`${yyyy}-${mm}-${dd}`);
+  }
+
+  setToday(): void {
+    this.selectedDate.set(this.todayDateIso());
+    this.reload();
   }
 
   manageOrder(order: AdminOrder): void {
@@ -179,5 +237,11 @@ export class OrdersAdmin implements OnInit {
     }
 
     return String(value).trim();
+  }
+
+  private todayDateIso(): string {
+    const now = new Date();
+    const pad = (v: number) => String(v).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   }
 }

@@ -99,6 +99,7 @@ async def db_init() -> None:
         "label_printer_height_mm": "",
         "label_printer_dpi": 203,
         "guest_qr_invite_text": "Lieber [Name], Bitte scanne den QR Code ab um zu unserem Restaurant zu gelangen.",
+        "display_timezone": "Europe/Vienna",
         "prices_enabled": False,
         "voucher_codes_enabled": False,
     }

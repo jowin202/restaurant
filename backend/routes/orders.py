@@ -1,7 +1,8 @@
 import asyncio
 import socket
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -28,6 +29,46 @@ def _setting_enabled(value: Any) -> bool:
         lowered = value.strip().lower()
         return lowered in {"1", "true", "yes", "on", "ja"}
     return False
+
+
+def _to_utc_aware_datetime(value: Any) -> Optional[datetime]:
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _resolve_display_timezone() -> Any:
+    timezone_name = str(settings_manager.get_setting("display_timezone") or "").strip() or "Europe/Vienna"
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        return timezone.utc
+
+
+def _format_display_datetime(value: Any) -> str:
+    parsed = _to_utc_aware_datetime(value)
+    if parsed is None:
+        parsed = datetime.now(timezone.utc)
+    return parsed.astimezone(_resolve_display_timezone()).strftime("%d.%m.%Y %H:%M")
+
+
+def _order_day_range_utc(date_text: Optional[str]) -> tuple[datetime, datetime]:
+    display_tz = _resolve_display_timezone()
+    normalized = str(date_text or "").strip()
+
+    if normalized and normalized.lower() not in {"today", "heute"}:
+        try:
+            target_date = datetime.strptime(normalized, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Ungültiges Datum. Erwartet: YYYY-MM-DD")
+    else:
+        target_date = datetime.now(display_tz).date()
+
+    start_local = datetime.combine(target_date, time.min, tzinfo=display_tz)
+    end_local = start_local + timedelta(days=1)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
 def _to_money_cents(value: Any) -> int:
@@ -99,10 +140,7 @@ def _build_escpos_order_payload(
     show_prices: bool,
 ) -> bytes:
     created_at = order_document.get("created_at")
-    if isinstance(created_at, datetime):
-        created_text = created_at.astimezone().strftime("%d.%m.%Y %H:%M")
-    else:
-        created_text = datetime.now().astimezone().strftime("%d.%m.%Y %H:%M")
+    created_text = _format_display_datetime(created_at)
 
     user_name = str(order_document.get("user_name") or "Unbekannt")
     comment = str(order_document.get("comment") or "").strip()
@@ -667,7 +705,8 @@ def _serialize_order_for_admin(doc: Dict[str, Any]) -> Dict[str, Any]:
             total_quantity += float(quantity)
 
     created_at = doc.get('created_at')
-    created_at_iso = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at or '')
+    created_at_aware = _to_utc_aware_datetime(created_at)
+    created_at_iso = created_at_aware.isoformat() if created_at_aware else str(created_at or '')
 
     return {
         'id': str(doc['_id']),
@@ -686,13 +725,19 @@ def _serialize_order_for_admin(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.get('/')
-async def list_orders(request: Request, limit: int = Query(default=40, ge=1, le=200)):
+async def list_orders(
+    request: Request,
+    limit: int = Query(default=40, ge=1, le=200),
+    date: Optional[str] = Query(default=None),
+):
     if getattr(request.state, 'admin', 0) <= 0:
         raise HTTPException(status_code=403, detail='Nur Admins dürfen Bestellungen einsehen')
 
     db = await get_db()
+    day_start_utc, day_end_utc = _order_day_range_utc(date)
+    mongo_filter = {'created_at': {'$gte': day_start_utc, '$lt': day_end_utc}}
     docs = await db.orders.find(
-        {},
+        mongo_filter,
         {
             'user_id': 1,
             'user_name': 1,
