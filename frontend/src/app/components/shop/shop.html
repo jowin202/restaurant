@@ -1,7 +1,12 @@
 <div class="shop-page">
   <div class="shop-header">
     <h1>Online Shop</h1>
-    <div class="cart-badge">Warenkorb: {{ cartCount() }}</div>
+    <div class="cart-badge">
+      Warenkorb: {{ cartCount() }}
+      @if (pricesEnabled() && cartCount() > 0) {
+        <span class="cart-badge-price">· {{ formatPrice(cartSubtotalEur()) }}</span>
+      }
+    </div>
   </div>
 
   <div class="shop-layout">

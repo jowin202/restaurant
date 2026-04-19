@@ -1,10 +1,11 @@
 
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { ApiService } from '../../services/api.service';
@@ -52,12 +53,13 @@ interface AdminOrder {
     MatSnackBarModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatDatepickerModule,
   ],
   templateUrl: './orders-admin.html',
   styleUrl: './orders-admin.css',
 })
-export class OrdersAdmin implements OnInit {
+export class OrdersAdmin implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private snackBar = inject(MatSnackBar);
@@ -65,18 +67,59 @@ export class OrdersAdmin implements OnInit {
   loading = signal(false);
   orders = signal<AdminOrder[]>([]);
   selectedDate = signal(this.todayDateIso());
+  statusFilter = signal<string>('all');
+  lastUpdated = signal<Date | null>(null);
+
+  filteredOrders = computed(() => {
+    const filter = this.statusFilter();
+    if (filter === 'all') return this.orders();
+    return this.orders().filter((o) => o.status === filter);
+  });
+
+  private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit(): void {
     this.reload();
+    this.startAutoRefresh();
   }
 
-  reload(): void {
-    this.loading.set(true);
+  ngOnDestroy(): void {
+    this.stopAutoRefresh();
+  }
+
+  private startAutoRefresh(): void {
+    this.stopAutoRefresh();
+    this.autoRefreshTimer = setInterval(() => {
+      if (this.selectedDate() === this.todayDateIso()) {
+        this.reload(false);
+      }
+    }, 45_000);
+  }
+
+  private stopAutoRefresh(): void {
+    if (this.autoRefreshTimer) {
+      clearInterval(this.autoRefreshTimer);
+      this.autoRefreshTimer = null;
+    }
+  }
+
+  setStatusFilter(value: string): void {
+    this.statusFilter.set(value);
+  }
+
+  formatLastUpdated(): string {
+    const date = this.lastUpdated();
+    if (!date) return '';
+    return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  reload(showLoading: boolean = true): void {
+    if (showLoading) this.loading.set(true);
     const selected = this.selectedDate().trim();
     const dateQuery = selected ? `&date=${encodeURIComponent(selected)}` : '';
 
     this.api.get(`/api/orders/?limit=80${dateQuery}`, this.auth.token()).subscribe((ordersRes: any) => {
-      this.loading.set(false);
+      if (showLoading) this.loading.set(false);
 
       if (this.isApiError(ordersRes)) {
         this.orders.set([]);
@@ -85,12 +128,14 @@ export class OrdersAdmin implements OnInit {
       }
 
       this.orders.set((ordersRes as AdminOrder[]) || []);
+      this.lastUpdated.set(new Date());
     });
   }
 
   setSelectedDate(value: string): void {
     this.selectedDate.set(value);
     this.reload();
+    this.startAutoRefresh();
   }
 
   selectedDateForPicker(): Date | null {

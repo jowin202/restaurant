@@ -29,6 +29,17 @@
   margin-bottom: -1.2em;
 }
 
+.status-filter-field {
+  width: 180px;
+  margin-bottom: -1.2em;
+}
+
+.last-updated {
+  font-size: 0.75rem;
+  color: #8a94a8;
+  margin-bottom: 8px;
+}
+
 .orders-header h2 {
   margin: 0;
 }

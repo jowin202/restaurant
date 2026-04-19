@@ -14,21 +14,35 @@
           <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
           <mat-datepicker #picker></mat-datepicker>
         </mat-form-field>
+        <mat-form-field appearance="outline" class="status-filter-field">
+          <mat-label>Status</mat-label>
+          <mat-select [value]="statusFilter()" (selectionChange)="setStatusFilter($event.value)">
+            <mat-option value="all">Alle</mat-option>
+            <mat-option value="pending_integration">Neu</mat-option>
+            <mat-option value="processing">In Bearbeitung</mat-option>
+            <mat-option value="printed">Gedruckt</mat-option>
+            <mat-option value="completed">Abgeschlossen</mat-option>
+            <mat-option value="cancelled">Storniert</mat-option>
+          </mat-select>
+        </mat-form-field>
         <button mat-stroked-button type="button" (click)="setToday()" [disabled]="loading()">Heute</button>
         <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">Aktualisieren</button>
       </div>
     </div>
+    @if (lastUpdated()) {
+      <div class="last-updated">Zuletzt aktualisiert: {{ formatLastUpdated() }}</div>
+    }
 
     @if (loading()) {
       <div class="loading">Bestellungen werden geladen...</div>
     }
-    @if (!loading() && orders().length === 0) {
+    @if (!loading() && filteredOrders().length === 0) {
       <div class="loading">Keine Bestellungen vorhanden.</div>
     }
 
-    @if (!loading() && orders().length > 0) {
+    @if (!loading() && filteredOrders().length > 0) {
       <div class="orders-list">
-        @for (order of orders(); track order) {
+        @for (order of filteredOrders(); track order) {
           <div class="order-card">
             <div class="order-head">
               <div>
