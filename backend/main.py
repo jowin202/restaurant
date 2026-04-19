@@ -48,6 +48,7 @@ from routes import orders
 from routes import voucher_codes
 from routes.admin import settings
 from routes.admin import users
+from routes.admin import label_print
 
 app.include_router(login.router, tags=["login"], prefix="/api/login")
 app.include_router(dashboard.router, tags=["dashboard"], prefix="/api/dashboard", dependencies=[Depends(verify_token)])
@@ -56,6 +57,7 @@ app.include_router(orders.router, tags=["orders"], prefix="/api/orders", depende
 app.include_router(voucher_codes.router, tags=["voucher_codes"], prefix="/api/voucher-codes", dependencies=[Depends(verify_token)])
 app.include_router(users.router, tags=["users"], prefix="/api/users", dependencies=[Depends(verify_token_super_admin)])
 app.include_router(settings.router, tags=["settings"], prefix="/api/settings", dependencies=[Depends(verify_token_super_admin)])
+app.include_router(label_print.router, tags=["label_print"], prefix="/api/items", dependencies=[Depends(verify_token_super_admin)])
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static-root")

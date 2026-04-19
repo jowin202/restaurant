@@ -185,6 +185,26 @@
   flex-wrap: wrap;
 }
 
+.label-print-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label-count-input {
+  width: 56px;
+  padding: 4px 6px;
+  border: 1px solid #c0c8d8;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.label-count-input:disabled {
+  opacity: 0.5;
+}
+
 .low-stock-panel {
   margin-top: 16px;
   border: 1px solid #f0dcc0;

@@ -37,6 +37,17 @@
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline" class="full-width">
+          <mat-label>ZPL-Vorlage (Etikettendrucker)</mat-label>
+          <textarea
+            matInput
+            rows="8"
+            formControlName="label_printer_zpl_template"
+            placeholder="Leer lassen für automatische Vorlage. Platzhalter: {NAME}, {EAN}, {PRICE}"
+            style="font-family: monospace; font-size: 12px;"
+          ></textarea>
+          <mat-hint>Platzhalter: {{ '{NAME}' }} · {{ '{EAN}' }} · {{ '{PRICE}' }} (nur wenn Preise aktiviert). Leer = automatische Vorlage aus Breite/Höhe/DPI.</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
           <mat-label>Textvorlage QR-Hinweis</mat-label>
           <textarea
             matInput

@@ -1,5 +1,6 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, WritableSignal } from '@angular/core';
 
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,6 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.services';
@@ -45,6 +47,7 @@ interface DashboardData {
   selector: 'app-items-list',
   standalone: true,
   imports: [
+    FormsModule,
     RouterModule,
     MatCardModule,
     MatButtonModule,
@@ -52,7 +55,8 @@ interface DashboardData {
     MatInputModule,
     MatIconModule,
     MatDialogModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatTooltipModule,
 ],
   templateUrl: './items-list.html',
   styleUrls: ['./items-list.css'],
@@ -66,6 +70,9 @@ export class ItemsList implements OnInit {
   loading = signal(true);
   foodSearchText = signal('');
   drinkSearchText = signal('');
+
+  printingItems = signal<Set<string>>(new Set());
+  printCounts: Record<string, number> = {};
 
   dashboardData = signal<DashboardData | null>(null);
   items = signal<Item[]>([]);
@@ -171,6 +178,47 @@ export class ItemsList implements OnInit {
 
   private stripHtml(value: string): string {
     return value.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  getPrintCount(item: Item): number {
+    return this.printCounts[item.id] ?? 1;
+  }
+
+  setPrintCount(item: Item, value: number): void {
+    this.printCounts[item.id] = Math.max(1, Math.min(100, value || 1));
+  }
+
+  isPrinting(item: Item): boolean {
+    return this.printingItems().has(item.id);
+  }
+
+  printLabel(item: Item): void {
+    const count = this.getPrintCount(item);
+    const printing = new Set(this.printingItems());
+    printing.add(item.id);
+    this.printingItems.set(printing);
+
+    this.api.post(`/api/items/${item.id}/print-label/?count=${count}`, this.auth.token(), {}).subscribe({
+      next: (res: any) => {
+        const done = new Set(this.printingItems());
+        done.delete(item.id);
+        this.printingItems.set(done);
+
+        if (this.isApiError(res) || res?.detail) {
+          const msg = res?.detail || 'Drucken fehlgeschlagen.';
+          this.snackBar.open(msg, 'OK', { duration: 3000 });
+          return;
+        }
+        this.snackBar.open(`${count} Etikett${count !== 1 ? 'en' : ''} gedruckt.`, 'OK', { duration: 2000 });
+      },
+      error: (err: any) => {
+        const done = new Set(this.printingItems());
+        done.delete(item.id);
+        this.printingItems.set(done);
+        const msg = err?.error?.detail || 'Drucker nicht erreichbar.';
+        this.snackBar.open(msg, 'OK', { duration: 3000 });
+      },
+    });
   }
 
   private isApiError(response: any): boolean {

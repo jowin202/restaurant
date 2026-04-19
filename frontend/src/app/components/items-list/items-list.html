@@ -91,6 +91,28 @@
                       <button mat-button (click)="removeImage(item)">Bild entfernen</button>
                     }
                   </div>
+                  @if (item.ean) {
+                    <div class="label-print-row">
+                      <input
+                        type="number"
+                        class="label-count-input"
+                        min="1"
+                        max="100"
+                        [value]="getPrintCount(item)"
+                        (change)="setPrintCount(item, $any($event.target).valueAsNumber)"
+                        [disabled]="isPrinting(item)"
+                        matTooltip="Anzahl Etiketten"
+                      />
+                      <button
+                        mat-stroked-button
+                        (click)="printLabel(item)"
+                        [disabled]="isPrinting(item)"
+                      >
+                        <mat-icon>label</mat-icon>
+                        {{ isPrinting(item) ? 'Druckt...' : 'Etikett drucken' }}
+                      </button>
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -151,6 +173,28 @@
                       <button mat-button (click)="removeImage(item)">Bild entfernen</button>
                     }
                   </div>
+                  @if (item.ean) {
+                    <div class="label-print-row">
+                      <input
+                        type="number"
+                        class="label-count-input"
+                        min="1"
+                        max="100"
+                        [value]="getPrintCount(item)"
+                        (change)="setPrintCount(item, $any($event.target).valueAsNumber)"
+                        [disabled]="isPrinting(item)"
+                        matTooltip="Anzahl Etiketten"
+                      />
+                      <button
+                        mat-stroked-button
+                        (click)="printLabel(item)"
+                        [disabled]="isPrinting(item)"
+                      >
+                        <mat-icon>label</mat-icon>
+                        {{ isPrinting(item) ? 'Druckt...' : 'Etikett drucken' }}
+                      </button>
+                    </div>
+                  }
                 </div>
               }
             </div>
