@@ -1,6 +1,6 @@
-# Boxertafel
+# Restaurant & Fridge
 
-Inventory, shop and admin system for a club canteen ("Boxertafel"), built as an Angular SPA backed by a FastAPI service and MongoDB.
+Inventory, shop and admin system for a club canteen, built as an Angular SPA backed by a FastAPI service and MongoDB.
 
 ## Features
 

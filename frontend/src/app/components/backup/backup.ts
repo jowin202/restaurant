@@ -55,7 +55,7 @@ export class DatabaseManagement {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `boxertafel_backup_${new Date().toISOString().split('T')[0]}.sql`;
+      a.download = `restaurant_backup_${new Date().toISOString().split('T')[0]}.sql`;
 
       document.body.appendChild(a); // Optional, aber sauberer für manche Browser
       a.click();

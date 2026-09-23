@@ -7,21 +7,6 @@ build:
     - buildah push --tls-verify=false $CI_REGISTRY_IMAGE
   when: always
 
-#deploy:
-#  stage: deploy
-#  image: alpine:latest
-#  before_script:
-#    - apk add --no-cache openssh-client docker-cli
-#    - mkdir -p ~/.ssh
-#    - echo "$SSH_PRIVATE_KEY" | sed 's/\r$//' > ~/.ssh/id_rsa
-#    - chmod 600 ~/.ssh/id_rsa
-#    - ssh-keyscan jowin.at >> ~/.ssh/known_hosts
-#  script:
-#    - ssh -tt -o StrictHostKeyChecking=no deploy@jowin.at "cd /home/deploy/boxertafel/ &&  docker-compose down &&  docker login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD &&  docker image rm registry.jowin.at/jowin202/boxertafel:latest -f || true && docker-compose up -d"
-      
-
-
-
 deploy-to-rancher:
   stage: deploy
   image: 
