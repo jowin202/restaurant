@@ -1,0 +1,28 @@
+services:
+  web:
+    image: ghcr.io/jowin202/restaurant:latest
+    container_name: restaurant-api
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DB: ${MONGODB_DB}
+      ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD}
+      HMAC_KEY: ${HMAC_KEY}
+      UPCITEMDB_API_KEY: ${UPCITEMDB_API_KEY}
+      BARCODELOOKUP_API_KEY: ${BARCODELOOKUP_API_KEY}
+
+  db:
+    image: public.ecr.aws/docker/library/mongo:8
+    container_name: restaurant-mongodb
+    restart: always
+    ports:
+      - "${MONGODB_PORT}:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
