@@ -21,19 +21,49 @@ def _build_default_zpl(name: str, ean: str, price: str, width_mm: float, height_
     w = _mm_to_dots(width_mm, dpi)
     h = _mm_to_dots(height_mm, dpi)
 
+    # Name, QR and price are stacked and spread across the label's *full* height
+    # (top margin to bottom margin) instead of being clustered in the top half.
+    # Text is kept compact so the QR - the main scannable element - gets most of
+    # the space. Since Link-OS 6.8, ^BQ's magnification factor goes up to 100
+    # (older firmware only supports up to 10); if the printer is on older firmware
+    # and rejects/clamps values above 10, lower _QR_MAX_MAGNIFICATION below.
+    _QR_MAX_MAGNIFICATION = 100
+    font_aspect = 0.56  # width:height ratio of Zebra font D, used to keep text looking normal
+    margin_mm = min(width_mm, height_mm) * 0.05
+    gap_mm = height_mm * 0.03
+    name_h_mm = height_mm * 0.12
+    price_h_mm = height_mm * 0.09
+
+    name_y_mm = margin_mm
+    price_y_mm = height_mm - margin_mm - price_h_mm
+    qr_y_mm = name_y_mm + name_h_mm + gap_mm
+    qr_available_mm = max(0.0, price_y_mm - gap_mm - qr_y_mm)
+
+    qr_module_target_mm = qr_available_mm / 25  # ~25 modules is typical for a short EAN
+    qr_mag = min(_QR_MAX_MAGNIFICATION, max(1, round(qr_module_target_mm * dpi / 25.4)))
+
+    left = _mm_to_dots(margin_mm, dpi)
+    name_y = _mm_to_dots(name_y_mm, dpi)
+    name_h = _mm_to_dots(name_h_mm, dpi)
+    name_w = _mm_to_dots(name_h_mm * font_aspect, dpi)
+    qr_y = _mm_to_dots(qr_y_mm, dpi)
+    price_h = _mm_to_dots(price_h_mm, dpi)
+    price_w = _mm_to_dots(price_h_mm * font_aspect, dpi)
+    price_y = _mm_to_dots(price_y_mm, dpi)
+
     lines = [
         "^XA",
         f"^PW{w}",
         f"^LL{h}",
-        "^FO20,15^ADN,36,20^FD" + name[:40] + "^FS",
+        f"^FO{left},{name_y}^ADN,{name_h},{name_w}^FD" + name[:40] + "^FS",
     ]
 
     if ean:
-        lines.append(f"^FO20,60^BQN,2,4^FDQA,{ean}^FS")
+        lines.append(f"^FO{left},{qr_y}^BQN,2,{qr_mag}^FDQA,{ean}^FS")
         if price:
-            lines.append(f"^FO220,75^ADN,28,15^FD{price}^FS")
+            lines.append(f"^FO{left},{price_y}^ADN,{price_h},{price_w}^FD{price}^FS")
     elif price:
-        lines.append(f"^FO20,75^ADN,28,15^FD{price}^FS")
+        lines.append(f"^FO{left},{price_y}^ADN,{price_h},{price_w}^FD{price}^FS")
 
     lines.append(f"^PQ{count}")
     lines.append("^XZ")
