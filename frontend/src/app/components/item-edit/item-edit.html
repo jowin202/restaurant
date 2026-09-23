@@ -99,7 +99,7 @@
           <div class="image-preview">
             <img [src]="image" alt="Item Bild" />
             <button mat-mini-fab color="warn" type="button" class="remove-image-btn" [disabled]="imageBusy()"
-              (click)="removeImage(imageMetas()[i]?.id)">
+              (click)="removeImage($safeNavigationMigration(imageMetas()[i]?.id))">
               <mat-icon>delete</mat-icon>
             </button>
           </div>

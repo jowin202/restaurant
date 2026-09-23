@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -45,6 +45,7 @@ type VoucherFilter = 'active' | 'redeemed' | 'expired' | 'all';
     MatSnackBarModule,
   ],
   templateUrl: './voucher-codes.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './voucher-codes.css',
 })
 export class VoucherCodes implements OnInit {

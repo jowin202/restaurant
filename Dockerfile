@@ -1,12 +1,12 @@
-FROM public.ecr.aws/docker/library/node:20 AS build
+FROM public.ecr.aws/docker/library/node:24 AS build
 WORKDIR /app
 RUN npm install -g @angular/cli
 COPY frontend/ .
 RUN npm install
-RUN npm run build --prod
+RUN npm run build
 
 
-FROM public.ecr.aws/docker/library/python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.14-slim
 
 WORKDIR /app
 

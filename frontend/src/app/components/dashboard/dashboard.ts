@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewChild, ElementRef, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ElementRef, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -72,6 +72,7 @@ interface EanLookupResult {
     MatSnackBarModule
 ],
   templateUrl: './dashboard.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./dashboard.css'],
 })
 export class Dashboard implements OnInit, OnDestroy {

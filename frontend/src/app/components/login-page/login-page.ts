@@ -1,4 +1,4 @@
-import { Component, effect, signal } from '@angular/core';
+import { Component, effect, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -21,6 +21,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
     MatProgressSpinnerModule,
     MatButtonModule],
   templateUrl: './login-page.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './login-page.css',
 })
 export class LoginPage {

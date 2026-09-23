@@ -1,5 +1,5 @@
 
-import { ChangeDetectorRef, Component, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
@@ -56,6 +56,7 @@ interface BulkImportResponse {
     MatPaginatorModule
 ],
   templateUrl: './user-table.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './user-table.css',
 })
 export class UserTable {

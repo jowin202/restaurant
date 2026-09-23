@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -27,6 +27,7 @@ import { map, shareReplay } from 'rxjs/operators';
     AsyncPipe // Wichtig für die Handy-Erkennung im HTML
   ],
   templateUrl: './main-page.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './main-page.css',
 })
 export class MainPage {

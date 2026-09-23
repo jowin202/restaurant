@@ -1,5 +1,5 @@
 
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -41,6 +41,7 @@ const DEFAULT_INVITE_TEXT = 'Lieber [Name], Bitte scanne den QR Code ab um zu un
     MatSnackBarModule
 ],
   templateUrl: './settings-admin.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './settings-admin.css',
 })
 export class SettingsAdmin implements OnInit {

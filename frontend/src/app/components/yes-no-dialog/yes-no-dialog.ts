@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogActions, MatDialogContent, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -19,6 +19,7 @@ export interface DialogData {
     MatButtonModule,
   ],
   templateUrl: './yes-no-dialog.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './yes-no-dialog.scss',
 })
 export class YesNoDialog {

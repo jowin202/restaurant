@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, ViewChild, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, ViewChild, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -83,6 +83,7 @@ interface EanLookupResult {
     HtmlEditor
 ],
   templateUrl: './item-create.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./item-create.css'],
 })
 export class ItemCreate implements OnDestroy {

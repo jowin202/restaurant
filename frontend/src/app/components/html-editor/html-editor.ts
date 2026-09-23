@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, forwardRef, Input, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, forwardRef, Input, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
   imports: [MatButtonModule, MatIconModule],
   templateUrl: './html-editor.html',
   styleUrl: './html-editor.css',
+  changeDetection: ChangeDetectionStrategy.Eager,
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,

@@ -18,7 +18,7 @@ services:
       - ./backend/:/app/
 
   db:
-    image: public.ecr.aws/docker/library/mongo:7
+    image: public.ecr.aws/docker/library/mongo:8
     container_name: restaurant-mongodb
     restart: always
     ports:

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -71,6 +71,7 @@ interface CheckoutPayment {
     MatSnackBarModule
 ],
   templateUrl: './shop.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './shop.css',
 })
 export class Shop implements OnInit, OnDestroy {

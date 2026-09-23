@@ -1,5 +1,5 @@
 
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -57,6 +57,7 @@ interface AdminOrder {
     MatDatepickerModule,
   ],
   templateUrl: './orders-admin.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './orders-admin.css',
 })
 export class OrdersAdmin implements OnInit, OnDestroy {

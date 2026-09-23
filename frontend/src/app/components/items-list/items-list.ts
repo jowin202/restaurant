@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, WritableSignal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, WritableSignal, ChangeDetectionStrategy } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -59,6 +59,7 @@ interface DashboardData {
     MatTooltipModule,
 ],
   templateUrl: './items-list.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./items-list.css'],
 })
 export class ItemsList implements OnInit {

@@ -1,5 +1,5 @@
 
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ReactiveFormsModule, UntypedFormControl, UntypedFormGroup, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -37,6 +37,7 @@ export interface OrderAttributesDialogData {
     MatButtonModule
 ],
   templateUrl: './order-attributes-dialog.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './order-attributes-dialog.css',
 })
 export class OrderAttributesDialog {

@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
 import { AuthService } from '../../services/auth.services';
 import { ApiService } from '../../services/api.service';
 import { MatCardModule } from '@angular/material/card';
@@ -12,6 +12,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatProgressSpinnerModule, MatIconModule],
   templateUrl: './backup.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './backup.css'
 })
 export class DatabaseManagement {

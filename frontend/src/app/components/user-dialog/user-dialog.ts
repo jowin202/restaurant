@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, ChangeDetectionStrategy } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -23,6 +23,7 @@ import { MatSelectModule } from '@angular/material/select';
     MatSelectModule
     
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './user-dialog.html' // <--- Hier wird deine Datei eingebunden
 })
 export class UserDialog {

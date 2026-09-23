@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -67,6 +67,7 @@ interface Item {
     HtmlEditor
 ],
   templateUrl: './item-edit.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./item-edit.css'],
 })
 export class ItemEdit implements OnInit, OnDestroy {

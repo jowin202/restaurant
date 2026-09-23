@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -41,6 +41,7 @@ interface EanLookupResult {
     MatSelectModule
 ],
   templateUrl: './inventory.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './inventory.css',
 })
 export class Inventory implements OnInit, OnDestroy {
